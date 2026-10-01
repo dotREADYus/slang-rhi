@@ -375,6 +375,17 @@ GPU_TEST_CASE("surface-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
     testSurface<RenderSurfaceTest>(device);
 }
 
+struct BGRARenderSurfaceTest : RenderSurfaceTest
+{
+    Format getSurfaceFormat() override { return Format::BGRA8Unorm; }
+};
+
+GPU_TEST_CASE("surface-render-bgra", D3D11 | D3D12)
+{
+    CHECK(device->hasFeature(Feature::Surface));
+    testSurface<BGRARenderSurfaceTest>(device);
+}
+
 // skip WGPU: RWTexture binding fails
 GPU_TEST_CASE("surface-compute", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {

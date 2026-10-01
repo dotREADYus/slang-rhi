@@ -32,6 +32,8 @@ public:
         static const Format kSupportedFormats[] = {
             Format::RGBA8Unorm,
             Format::RGBA8UnormSrgb,
+            Format::BGRA8Unorm,
+            Format::BGRA8UnormSrgb,
             Format::RGBA16Float,
             Format::RGB10A2Unorm,
         };
