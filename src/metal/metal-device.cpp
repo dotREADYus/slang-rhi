@@ -238,6 +238,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::HardwareDevice);
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);
+    addFeature(Feature::OcclusionQuery);
+    if (m_device->supportsFamily(MTL::GPUFamilyApple3) || m_device->supportsFamily(MTL::GPUFamilyMac1))
+        addFeature(Feature::PreciseOcclusionQuery);
 
     if (m_device->supportsRaytracing())
     {

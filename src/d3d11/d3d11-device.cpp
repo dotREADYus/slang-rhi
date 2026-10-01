@@ -298,6 +298,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);
+    addFeature(Feature::OcclusionQuery);
+    addFeature(Feature::PreciseOcclusionQuery);
     addFeature(Feature::CustomBorderColor);
     if (m_info.timestampFrequency > 0)
     {

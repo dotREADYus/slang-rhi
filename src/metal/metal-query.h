@@ -8,6 +8,7 @@ class QueryPoolImpl : public QueryPool
 {
 public:
     NS::SharedPtr<MTL::CounterSampleBuffer> m_counterSampleBuffer;
+    NS::SharedPtr<MTL::Buffer> m_visibilityBuffer;
 
     QueryPoolImpl(Device* device, const QueryPoolDesc& desc);
     ~QueryPoolImpl();

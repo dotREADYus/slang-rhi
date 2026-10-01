@@ -1,5 +1,6 @@
 #include "vk-query.h"
 #include "vk-device.h"
+#include "vk-command.h"
 #include "vk-utils.h"
 
 namespace rhi::vk {
@@ -8,12 +9,22 @@ Result QueryPoolImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    if (m_desc.count == 0)
+        return SLANG_E_INVALID_ARG;
     m_pool = VK_NULL_HANDLE;
     VkQueryPoolCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
     createInfo.queryCount = m_desc.count;
     switch (m_desc.type)
     {
+    case QueryType::Occlusion:
+    case QueryType::OcclusionPrecise:
+        if (!device->hasFeature(
+                m_desc.type == QueryType::OcclusionPrecise ? Feature::PreciseOcclusionQuery : Feature::OcclusionQuery
+            ))
+            return SLANG_E_NOT_AVAILABLE;
+        createInfo.queryType = VK_QUERY_TYPE_OCCLUSION;
+        break;
     case QueryType::Timestamp:
         createInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
         break;
@@ -82,6 +93,13 @@ Result QueryPoolImpl::getResultState(uint32_t queryIndex, uint32_t count, QueryR
 
     DeviceImpl* device = getDevice<DeviceImpl>();
     std::vector<uint64_t> data(count);
+    // A GPU reset in the new submission may not have executed yet. Native
+    // availability can still refer to the preceding use of this slot.
+    if (isOcclusionQueryType(m_desc.type) && device->m_queue->updateLastFinishedID() < queryInfo.submissionID)
+    {
+        *outState = QueryResultState::Pending;
+        return SLANG_OK;
+    }
     VkResult result = device->m_api.vkGetQueryPoolResults(
         device->m_api.m_device,
         m_pool,
@@ -128,6 +146,17 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
+    if (isOcclusionQueryType(m_desc.type) && device->m_queue->updateLastFinishedID() < queryInfo.submissionID)
+    {
+        VkSemaphoreWaitInfo waitInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO};
+        waitInfo.semaphoreCount = 1;
+        waitInfo.pSemaphores = &device->m_queue->m_trackingSemaphore;
+        waitInfo.pValues = &queryInfo.submissionID;
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            device->m_api.vkWaitSemaphores(device->m_api.m_device, &waitInfo, UINT64_MAX),
+            device
+        );
+    }
     SLANG_VK_RETURN_ON_FAIL_REPORT(
         device->m_api.vkGetQueryPoolResults(
             device->m_api.m_device,

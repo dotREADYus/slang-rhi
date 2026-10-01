@@ -227,7 +227,7 @@ inline bool isValidStoreOp(StoreOp value)
 
 inline bool isValidQueryType(QueryType value)
 {
-    return isValidEnum<QueryType, QueryType::AccelerationStructureCurrentSize>(value);
+    return isValidEnum<QueryType, QueryType::OcclusionPrecise>(value);
 }
 
 inline bool isValidAccelerationStructureKind(AccelerationStructureKind value)

@@ -181,10 +181,48 @@ void RenderPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryInde
     }
 }
 
+Result RenderPassEncoder::beginOcclusionQuery(uint32_t queryIndex)
+{
+    if (!m_commandList || m_activeOcclusionQuery != UINT32_MAX)
+        return SLANG_FAIL;
+    if (!m_occlusionQueryPool || queryIndex >= m_occlusionQueryPool->getDesc().count)
+        return SLANG_E_INVALID_ARG;
+    // Vulkan requires reset before each write, outside the pass. Permit one
+    // write per slot per command buffer so the recorder can reset at its start.
+    for (const auto& write : m_commandList->getQueryWrites())
+    {
+        if (write.queryPool == m_occlusionQueryPool && queryIndex >= write.index &&
+            queryIndex - write.index < write.count)
+            return SLANG_FAIL;
+    }
+    m_activeOcclusionQuery = queryIndex;
+    m_commandList->write(commands::BeginOcclusionQuery{m_occlusionQueryPool, queryIndex});
+    return SLANG_OK;
+}
+
+Result RenderPassEncoder::endOcclusionQuery()
+{
+    if (!m_commandList || m_activeOcclusionQuery == UINT32_MAX)
+        return SLANG_FAIL;
+    m_commandList->write(commands::EndOcclusionQuery{m_occlusionQueryPool, m_activeOcclusionQuery});
+    m_activeOcclusionQuery = UINT32_MAX;
+    return SLANG_OK;
+}
+
 void RenderPassEncoder::end()
 {
     if (m_commandList)
     {
+        if (m_activeOcclusionQuery != UINT32_MAX)
+        {
+            m_commandEncoder->getDevice()->handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Layer,
+                "Occlusion query must end before its render pass"
+            );
+            endOcclusionQuery(); // Keep invalid application usage from producing an invalid native pass.
+        }
+        m_occlusionQueryPool = nullptr;
         commands::EndRenderPass cmd;
         m_commandList->write(std::move(cmd));
         m_commandList = nullptr;
@@ -458,9 +496,28 @@ ICommandEncoder* CommandEncoder::getInterface(const Guid& guid)
 
 IRenderPassEncoder* CommandEncoder::beginRenderPass(const RenderPassDesc& desc)
 {
+    if (desc.occlusionQueryPool)
+    {
+        auto pool = checked_cast<QueryPool*>(desc.occlusionQueryPool);
+        const auto type = pool->getDesc().type;
+        if (pool->getDevice() != getDevice() || !isOcclusionQueryType(type) ||
+            !getDevice()->hasFeature(
+                type == QueryType::OcclusionPrecise ? Feature::PreciseOcclusionQuery : Feature::OcclusionQuery
+            ))
+        {
+            getDevice()->handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Layer,
+                "Invalid occlusion query pool for render pass"
+            );
+            return nullptr;
+        }
+    }
     commands::BeginRenderPass cmd;
     cmd.desc = desc;
     m_commandList->write(std::move(cmd));
+    m_renderPassEncoder.m_occlusionQueryPool = desc.occlusionQueryPool;
+    m_renderPassEncoder.m_activeOcclusionQuery = UINT32_MAX;
     m_renderPassEncoder.m_commandList = m_commandList;
     return &m_renderPassEncoder;
 }

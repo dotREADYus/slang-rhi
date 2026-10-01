@@ -1712,6 +1712,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::Surface);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Rasterization);
+    addFeature(Feature::OcclusionQuery);
+    if (m_api.m_deviceFeatures.occlusionQueryPrecise)
+        addFeature(Feature::PreciseOcclusionQuery);
     addFeature(Feature::CombinedTextureSampler);
     addFeature(Feature::TimestampQuery);
     for (auto feature : availableFeatures)

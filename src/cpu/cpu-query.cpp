@@ -29,6 +29,11 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
 
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
+    if (isOcclusionQueryType(desc.type))
+    {
+        *outPool = nullptr;
+        return SLANG_E_NOT_AVAILABLE;
+    }
     RefPtr<QueryPoolImpl> pool = new QueryPoolImpl(this, desc);
     pool->m_queries.resize(desc.count);
     returnComPtr(outPool, pool);

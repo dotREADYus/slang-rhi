@@ -88,6 +88,8 @@ public:
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
     void cmdEndRenderPass(const commands::EndRenderPass& cmd);
+    void cmdBeginOcclusionQuery(const commands::BeginOcclusionQuery& cmd);
+    void cmdEndOcclusionQuery(const commands::EndOcclusionQuery& cmd);
     void cmdSetRenderState(const commands::SetRenderState& cmd);
     void cmdDraw(const commands::Draw& cmd);
     void cmdDrawIndexed(const commands::DrawIndexed& cmd);
@@ -131,7 +133,7 @@ public:
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
     void commitBarriers();
 
-    void resolveTimestampQueryResults(const CommandList::QueryWriteRangeList& queryWrites);
+    void resolveHostQueryResults(const CommandList::QueryWriteRangeList& queryWrites);
 
     void requireAccelerationStructureQueryResultBuffers(
         uint32_t queryCount,
@@ -179,9 +181,9 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 #undef SLANG_RHI_COMMAND_EXECUTE_X
     }
 
-    if (commandList.writesTimestamp())
+    if (!commandList.getQueryWrites().empty())
     {
-        resolveTimestampQueryResults(commandList.getQueryWrites());
+        resolveHostQueryResults(commandList.getQueryWrites());
     }
 
     // Transition all resources back to their default states.
@@ -727,6 +729,19 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     }
 
     m_renderPassActive = true;
+}
+
+void CommandRecorder::cmdBeginOcclusionQuery(const commands::BeginOcclusionQuery& cmd)
+{
+    auto pool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
+    commitBarriers();
+    m_cmdList->BeginQuery(pool->m_queryHeap, pool->m_queryType, cmd.queryIndex);
+}
+
+void CommandRecorder::cmdEndOcclusionQuery(const commands::EndOcclusionQuery& cmd)
+{
+    auto pool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
+    m_cmdList->EndQuery(pool->m_queryHeap, pool->m_queryType, cmd.queryIndex);
 }
 
 void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
@@ -1858,11 +1873,12 @@ void CommandRecorder::commitBarriers()
     m_stateTracking.clearBarriers();
 }
 
-void CommandRecorder::resolveTimestampQueryResults(const CommandList::QueryWriteRangeList& queryWrites)
+void CommandRecorder::resolveHostQueryResults(const CommandList::QueryWriteRangeList& queryWrites)
 {
     for (const auto& queryWrite : queryWrites)
     {
-        if (queryWrite.queryPool->getDesc().type != QueryType::Timestamp)
+        if (queryWrite.queryPool->getDesc().type != QueryType::Timestamp &&
+            !isOcclusionQueryType(queryWrite.queryPool->getDesc().type))
             continue;
 
         auto queryPool = checked_cast<QueryPoolImpl*>(queryWrite.queryPool);

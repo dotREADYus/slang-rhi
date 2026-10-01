@@ -295,6 +295,11 @@ public:
     IInputLayout* getInterface(const Guid& guid);
 };
 
+inline bool isOcclusionQueryType(QueryType type)
+{
+    return type == QueryType::Occlusion || type == QueryType::OcclusionPrecise;
+}
+
 class QueryPool : public IQueryPool, public DeviceChild
 {
 public:

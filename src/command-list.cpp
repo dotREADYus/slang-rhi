@@ -83,6 +83,7 @@ void CommandList::write(commands::ResolveQuery&& cmd)
 
 void CommandList::write(commands::BeginRenderPass&& cmd)
 {
+    retainResource<QueryPool>(cmd.desc.occlusionQueryPool);
     if (cmd.desc.colorAttachments && cmd.desc.colorAttachmentCount > 0)
     {
         cmd.desc.colorAttachments = (RenderPassColorAttachment*)
@@ -397,6 +398,19 @@ void CommandList::write(commands::InsertDebugMarker&& cmd)
 {
     if (cmd.name)
         cmd.name = (const char*)writeData(cmd.name, strlen(cmd.name) + 1);
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::write(commands::BeginOcclusionQuery&& cmd)
+{
+    retainResource<QueryPool>(cmd.queryPool);
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::write(commands::EndOcclusionQuery&& cmd)
+{
+    retainResource<QueryPool>(cmd.queryPool);
+    trackQueryWrite(cmd.queryPool, cmd.queryIndex, 1);
     writeCommand(std::move(cmd));
 }
 

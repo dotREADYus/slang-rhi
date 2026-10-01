@@ -23,6 +23,8 @@
     x(ResolveQuery) \
     x(BeginRenderPass) \
     x(EndRenderPass) \
+    x(BeginOcclusionQuery) \
+    x(EndOcclusionQuery) \
     x(SetRenderState) \
     x(Draw) \
     x(DrawIndexed) \
@@ -164,6 +166,18 @@ struct BeginRenderPass
 
 struct EndRenderPass
 {};
+
+struct BeginOcclusionQuery
+{
+    IQueryPool* queryPool;
+    uint32_t queryIndex;
+};
+
+struct EndOcclusionQuery
+{
+    IQueryPool* queryPool;
+    uint32_t queryIndex;
+};
 
 struct SetRenderState
 {
@@ -460,6 +474,8 @@ public:
     void write(commands::PushDebugGroup&& cmd);
     void write(commands::PopDebugGroup&& cmd);
     void write(commands::InsertDebugMarker&& cmd);
+    void write(commands::BeginOcclusionQuery&& cmd);
+    void write(commands::EndOcclusionQuery&& cmd);
     void write(commands::WriteTimestamp&& cmd);
     void write(commands::ExecuteCallback&& cmd);
 

@@ -1,5 +1,6 @@
 #include "metal-query.h"
 #include "metal-device.h"
+#include "metal-command.h"
 #include "metal-utils.h"
 
 namespace rhi::metal {
@@ -41,6 +42,22 @@ Result QueryPoolImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    if (isOcclusionQueryType(m_desc.type))
+    {
+        if (m_desc.count == 0 || m_desc.count > 8192)
+            return SLANG_E_INVALID_ARG; // Conservative 64 KiB limit supported by every Metal GPU family.
+        if (!device->hasFeature(
+                m_desc.type == QueryType::OcclusionPrecise ? Feature::PreciseOcclusionQuery : Feature::OcclusionQuery
+            ))
+            return SLANG_E_NOT_AVAILABLE;
+        m_visibilityBuffer = NS::TransferPtr(
+            device->m_device->newBuffer(uint64_t(m_desc.count) * sizeof(uint64_t), MTL::ResourceStorageModeShared)
+        );
+        if (m_visibilityBuffer && m_desc.label)
+            m_visibilityBuffer->setLabel(createString(m_desc.label).get());
+        return m_visibilityBuffer ? SLANG_OK : SLANG_FAIL;
+    }
+
     MTL::CounterSet* counterSet = findCounterSet(device->m_device.get(), m_desc.type);
     if (!counterSet)
     {
@@ -66,12 +83,38 @@ Result QueryPoolImpl::init()
 
 Result QueryPoolImpl::getResultState(uint32_t queryIndex, uint32_t count, QueryResultState* outState)
 {
-    return SLANG_E_NOT_AVAILABLE;
+    if (!isOcclusionQueryType(m_desc.type))
+        return SLANG_E_NOT_AVAILABLE;
+    if (!outState || !isValidQueryRange(queryIndex, count))
+        return SLANG_E_INVALID_ARG;
+    auto info = getQueryRangeInfo(queryIndex, count);
+    *outState = info.state;
+    if (info.state == QueryResultState::Pending &&
+        getDevice<DeviceImpl>()->m_queue->updateLastFinishedID() >= info.submissionID)
+    {
+        markQueryRangeResolved(queryIndex, count, info.submissionID);
+        *outState = QueryResultState::Resolved;
+    }
+    return SLANG_OK;
 }
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
-    return SLANG_E_NOT_AVAILABLE;
+    if (!isOcclusionQueryType(m_desc.type))
+        return SLANG_E_NOT_AVAILABLE;
+    if (!outData || !isValidQueryRange(queryIndex, count))
+        return SLANG_E_INVALID_ARG;
+    auto info = getQueryRangeInfo(queryIndex, count);
+    if (info.state == QueryResultState::Reset)
+        return SLANG_FAIL;
+    if (count == 0)
+        return SLANG_OK;
+    auto queue = getDevice<DeviceImpl>()->m_queue;
+    if (queue->updateLastFinishedID() < info.submissionID)
+        SLANG_RETURN_ON_FAIL(queue->waitOnHost());
+    std::memcpy(outData, static_cast<uint64_t*>(m_visibilityBuffer->contents()) + queryIndex, sizeof(uint64_t) * count);
+    markQueryRangeResolved(queryIndex, count, info.submissionID);
+    return SLANG_OK;
 }
 
 } // namespace rhi::metal

@@ -24,6 +24,8 @@ QueryPoolImpl::~QueryPoolImpl()
 Result QueryPoolImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+    if (m_desc.count == 0)
+        return SLANG_E_INVALID_ARG;
 
     // Translate query type.
     D3D12_QUERY_HEAP_DESC heapDesc = {};
@@ -31,6 +33,12 @@ Result QueryPoolImpl::init()
     heapDesc.NodeMask = 1;
     switch (m_desc.type)
     {
+    case QueryType::Occlusion:
+    case QueryType::OcclusionPrecise:
+        heapDesc.Type = D3D12_QUERY_HEAP_TYPE_OCCLUSION;
+        m_queryType =
+            m_desc.type == QueryType::OcclusionPrecise ? D3D12_QUERY_TYPE_OCCLUSION : D3D12_QUERY_TYPE_BINARY_OCCLUSION;
+        break;
     case QueryType::Timestamp:
         heapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
         m_queryType = D3D12_QUERY_TYPE_TIMESTAMP;

@@ -832,6 +832,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::Surface);
     addFeature(Feature::PipelineCache);
     addFeature(Feature::Rasterization);
+    addFeature(Feature::OcclusionQuery);
+    addFeature(Feature::PreciseOcclusionQuery);
     addFeature(Feature::CustomBorderColor);
     addFeature(Feature::TimestampQuery);
     addFeature(Feature::TimestampCalibration);

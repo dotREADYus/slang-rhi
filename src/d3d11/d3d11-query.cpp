@@ -15,9 +15,17 @@ QueryPoolImpl::QueryPoolImpl(Device* device, const QueryPoolDesc& desc)
 
 Result QueryPoolImpl::init()
 {
+    if (m_desc.count == 0)
+        return SLANG_E_INVALID_ARG;
     m_queryDesc.MiscFlags = 0;
     switch (m_desc.type)
     {
+    case QueryType::Occlusion:
+        m_queryDesc.Query = D3D11_QUERY_OCCLUSION_PREDICATE;
+        break;
+    case QueryType::OcclusionPrecise:
+        m_queryDesc.Query = D3D11_QUERY_OCCLUSION;
+        break;
     case QueryType::Timestamp:
         m_queryDesc.Query = D3D11_QUERY_TIMESTAMP;
         break;
@@ -65,6 +73,25 @@ Result QueryPoolImpl::getResultState(uint32_t queryIndex, uint32_t count, QueryR
     for (uint32_t i = 0; i < count; i++)
     {
         const Query& query = m_queries[queryIndex + i];
+        if (isOcclusionQueryType(m_desc.type))
+        {
+            if (!query.timestampQuery)
+                return SLANG_FAIL;
+            uint64_t value = 0;
+            BOOL predicate = FALSE;
+            void* data =
+                m_desc.type == QueryType::Occlusion ? static_cast<void*>(&predicate) : static_cast<void*>(&value);
+            UINT size = m_desc.type == QueryType::Occlusion ? sizeof(predicate) : sizeof(value);
+            HRESULT hr =
+                device->m_immediateContext->GetData(query.timestampQuery, data, size, D3D11_ASYNC_GETDATA_DONOTFLUSH);
+            if (hr == S_FALSE)
+            {
+                *outState = QueryResultState::Pending;
+                return SLANG_OK;
+            }
+            SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
+            continue;
+        }
         if (!query.timestampQuery || !query.disjointQuery)
         {
             return SLANG_FAIL;
@@ -124,6 +151,22 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
     for (uint32_t i = 0; i < count; i++)
     {
         const Query& query = m_queries[queryIndex + i];
+        if (isOcclusionQueryType(m_desc.type))
+        {
+            if (!query.timestampQuery)
+                return SLANG_FAIL;
+            uint64_t value = 0;
+            BOOL predicate = FALSE;
+            void* data =
+                m_desc.type == QueryType::Occlusion ? static_cast<void*>(&predicate) : static_cast<void*>(&value);
+            UINT size = m_desc.type == QueryType::Occlusion ? sizeof(predicate) : sizeof(value);
+            HRESULT hr = S_FALSE;
+            while ((hr = device->m_immediateContext->GetData(query.timestampQuery, data, size, 0)) == S_FALSE)
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
+            outData[i] = m_desc.type == QueryType::Occlusion ? uint64_t(predicate != FALSE) : value;
+            continue;
+        }
         if (!query.timestampQuery || !query.disjointQuery)
         {
             return SLANG_FAIL;

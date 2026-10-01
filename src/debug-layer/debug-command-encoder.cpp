@@ -330,6 +330,28 @@ void DebugRenderPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t quer
     baseObject->writeTimestamp(getInnerObj(queryPool), queryIndex);
 }
 
+Result DebugRenderPassEncoder::beginOcclusionQuery(uint32_t queryIndex)
+{
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, beginOcclusionQuery);
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    Result result = baseObject->beginOcclusionQuery(queryIndex);
+    if (SLANG_FAILED(result))
+        RHI_VALIDATION_ERROR("Invalid occlusion query index, nesting, or slot reuse.");
+    return result;
+}
+
+Result DebugRenderPassEncoder::endOcclusionQuery()
+{
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, endOcclusionQuery);
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    Result result = baseObject->endOcclusionQuery();
+    if (SLANG_FAILED(result))
+        RHI_VALIDATION_ERROR("No active occlusion query to end.");
+    return result;
+}
+
 void DebugRenderPassEncoder::end()
 {
     SLANG_RHI_DEBUG_API(IRenderPassEncoder, end);
@@ -805,7 +827,9 @@ IRenderPassEncoder* DebugCommandEncoder::beginRenderPass(const RenderPassDesc& d
     if (hasErrors)
         return nullptr;
 
-    auto innerEncoder = baseObject->beginRenderPass(desc);
+    RenderPassDesc innerDesc = desc;
+    innerDesc.occlusionQueryPool = getInnerObj(desc.occlusionQueryPool);
+    auto innerEncoder = baseObject->beginRenderPass(innerDesc);
     if (!innerEncoder)
         return nullptr;
 

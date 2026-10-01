@@ -181,7 +181,10 @@ enum class DeviceType
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
     x(ResidencySet,                             "residency-set"                                 ) \
     /* CUDA specific features */                                                                  \
-    x(AtomicBfloat16,                           "atomic-bfloat16"                               )
+    x(AtomicBfloat16,                           "atomic-bfloat16"                               ) \
+    /* Occlusion query features (append to preserve existing enum values) */                      \
+    x(OcclusionQuery,                           "occlusion-query"                               ) \
+    x(PreciseOcclusionQuery,                    "precise-occlusion-query"                       )
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
@@ -2404,11 +2407,17 @@ struct RenderPassDepthStencilAttachment
     bool stencilReadOnly = false;
 };
 
+class IQueryPool;
+
 struct RenderPassDesc
 {
     const RenderPassColorAttachment* colorAttachments = nullptr;
     uint32_t colorAttachmentCount = 0;
     const RenderPassDepthStencilAttachment* depthStencilAttachment = nullptr;
+
+    /// Optional query pool for this pass. Must have type Occlusion or OcclusionPrecise.
+    /// Declare it here even if no queries are issued; backends attach query storage at pass creation.
+    IQueryPool* occlusionQueryPool = nullptr;
 };
 
 enum class QueryType
@@ -2416,6 +2425,11 @@ enum class QueryType
     Timestamp,
     AccelerationStructureCompactedSize,
     AccelerationStructureCurrentSize,
+    /// Zero means no samples passed the per-fragment tests; nonzero means visible.
+    /// The magnitude of a nonzero result is unspecified. Requires Feature::OcclusionQuery.
+    Occlusion,
+    /// Exact number of samples passing the per-fragment tests. Requires Feature::PreciseOcclusionQuery.
+    OcclusionPrecise,
 };
 
 enum class QueryResultState
@@ -2684,6 +2698,15 @@ public:
         BufferOffsetPair countBuffer = {}
     ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) = 0;
+
+    /// Begin an indexed query in RenderPassDesc::occlusionQueryPool. Only one query may be active.
+    /// Each index may be written at most once per command buffer. Queries cannot cross passes.
+    /// Invalid pool/range returns SLANG_E_INVALID_ARG; inactive pass/nesting/reuse returns SLANG_FAIL.
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginOcclusionQuery(uint32_t queryIndex) = 0;
+
+    /// End the active query before ending the render pass. Returns SLANG_FAIL if none is active.
+    /// Results follow IQueryPool submitted/pending/resolved and reset semantics.
+    virtual SLANG_NO_THROW Result SLANG_MCALL endOcclusionQuery() = 0;
 };
 
 class IComputePassEncoder : public IPassEncoder

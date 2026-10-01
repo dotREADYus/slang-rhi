@@ -405,6 +405,10 @@ const char* enumToString(QueryType value)
 {
     switch (value)
     {
+    case QueryType::Occlusion:
+        return S_QueryType_Occlusion;
+    case QueryType::OcclusionPrecise:
+        return S_QueryType_OcclusionPrecise;
     case QueryType::Timestamp:
         return S_QueryType_Timestamp;
     case QueryType::AccelerationStructureCompactedSize:

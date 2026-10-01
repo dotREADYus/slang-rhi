@@ -37,6 +37,8 @@ public:
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
     void cmdEndRenderPass(const commands::EndRenderPass& cmd);
+    void cmdBeginOcclusionQuery(const commands::BeginOcclusionQuery& cmd);
+    void cmdEndOcclusionQuery(const commands::EndOcclusionQuery& cmd);
     void cmdSetRenderState(const commands::SetRenderState& cmd);
     void cmdDraw(const commands::Draw& cmd);
     void cmdDrawIndexed(const commands::DrawIndexed& cmd);
@@ -154,6 +156,18 @@ void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 {
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(ICommandEncoder, beginRenderPass);
+}
+
+void CommandExecutor::cmdBeginOcclusionQuery(const commands::BeginOcclusionQuery& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(IRenderPassEncoder, beginOcclusionQuery);
+}
+
+void CommandExecutor::cmdEndOcclusionQuery(const commands::EndOcclusionQuery& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(IRenderPassEncoder, endOcclusionQuery);
 }
 
 void CommandExecutor::cmdEndRenderPass(const commands::EndRenderPass& cmd)

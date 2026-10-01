@@ -284,3 +284,38 @@ Note: CUDA's surface is implemented using a Vulkan swapchain.
 | `report`           | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `flush`            | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `removeEmptyPages` | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
+
+
+## Occlusion query contract
+
+`RenderPassDesc::occlusionQueryPool` declares optional pass query storage.
+`IRenderPassEncoder::beginOcclusionQuery(index)` / `endOcclusionQuery()` delimit
+one active query in that pool. Queries are pass-scoped; each slot may be written
+only once per command buffer. Separate submitted command buffers may reuse slots.
+Nesting, unbalanced scopes, invalid types/ranges and cross-device pools are errors.
+A pass ended with an active query reports an error and closes the native query
+for recovery; applications must not rely on that recovery.
+
+`QueryType::Occlusion` requires `Feature::OcclusionQuery`: zero means fully
+occluded and nonzero means visible, with unspecified nonzero magnitude.
+`OcclusionPrecise` requires `Feature::PreciseOcclusionQuery` and returns the exact
+number of samples passing per-fragment tests. Results reuse the indexed host
+Reset/Pending/Resolved and reset semantics; an unsubmitted query is not a valid
+zero result. Queries and their storage are retained by the command buffer.
+
+Initial implementations: D3D11/D3D12 counting and predicate queries; Vulkan
+occlusion pools with precise support gated on the enabled device feature; Metal
+visibility buffers (initial conservative limit: 8192 slots / 64 KiB), with counting advertised on Apple3
+or Mac1 families. CPU/CUDA and WebGPU advertise neither feature and reject these
+pool types with `SLANG_E_NOT_AVAILABLE`. WebGPU host result/readiness support is
+still unavailable in this library; its native query set is not silently exposed
+with inaccurate host semantics. Existing timestamp behavior is unchanged.
+
+| API | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-----|-----|------|-------|-------|--------|-------|------|
+| `beginOcclusionQuery` / `endOcclusionQuery` | :x: | :x: | yes | yes | yes | yes | :x: |
+| Host occlusion results / readiness | :x: | :x: | yes | yes | yes | yes | :x: |
+
+This extension adds interface methods and descriptor fields: rebuild consumers
+against the matching header/library. Backend implementation status is distinct
+from validation status; see the change's test evidence before claiming portability.

@@ -396,6 +396,11 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
+    if (isOcclusionQueryType(desc.type))
+    {
+        *outPool = nullptr;
+        return SLANG_E_NOT_AVAILABLE;
+    }
     switch (desc.type)
     {
     case QueryType::Timestamp:

@@ -158,6 +158,8 @@
 
 // QueryType
 #define S_QueryType_Timestamp "Timestamp"
+#define S_QueryType_Occlusion "Occlusion"
+#define S_QueryType_OcclusionPrecise "OcclusionPrecise"
 #define S_QueryType_AccelerationStructureCompactedSize "AccelerationStructureCompactedSize"
 #define S_QueryType_AccelerationStructureCurrentSize "AccelerationStructureCurrentSize"
 

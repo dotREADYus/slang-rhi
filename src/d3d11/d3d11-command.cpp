@@ -69,6 +69,8 @@ public:
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
     void cmdEndRenderPass(const commands::EndRenderPass& cmd);
+    void cmdBeginOcclusionQuery(const commands::BeginOcclusionQuery& cmd);
+    void cmdEndOcclusionQuery(const commands::EndOcclusionQuery& cmd);
     void cmdSetRenderState(const commands::SetRenderState& cmd);
     void cmdDraw(const commands::Draw& cmd);
     void cmdDrawIndexed(const commands::DrawIndexed& cmd);
@@ -450,6 +452,19 @@ void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     m_immediateContext->OMSetRenderTargets((UINT)renderTargetViews.size(), renderTargetViews.data(), depthStencilView);
 
     m_renderPassActive = true;
+}
+
+void CommandExecutor::cmdBeginOcclusionQuery(const commands::BeginOcclusionQuery& cmd)
+{
+    auto pool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
+    m_device->m_immediateContext->Begin(pool->getQuery(cmd.queryIndex));
+}
+
+void CommandExecutor::cmdEndOcclusionQuery(const commands::EndOcclusionQuery& cmd)
+{
+    auto pool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
+    m_device->m_immediateContext->End(pool->getQuery(cmd.queryIndex));
+    pool->markQueryRangeSubmitted(cmd.queryIndex, 1, m_submissionID);
 }
 
 void CommandExecutor::cmdEndRenderPass(const commands::EndRenderPass& cmd)

@@ -88,6 +88,8 @@ public:
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
     void cmdEndRenderPass(const commands::EndRenderPass& cmd);
+    void cmdBeginOcclusionQuery(const commands::BeginOcclusionQuery& cmd);
+    void cmdEndOcclusionQuery(const commands::EndOcclusionQuery& cmd);
     void cmdSetRenderState(const commands::SetRenderState& cmd);
     void cmdDraw(const commands::Draw& cmd);
     void cmdDrawIndexed(const commands::DrawIndexed& cmd);
@@ -152,6 +154,14 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkBeginCommandBuffer(m_cmdBuffer, &beginInfo), m_device);
 
     CommandList& commandList = commandBuffer->m_commandList;
+    for (const auto& write : commandList.getQueryWrites())
+    {
+        if (isOcclusionQueryType(write.queryPool->getDesc().type))
+        {
+            auto pool = checked_cast<QueryPoolImpl*>(write.queryPool);
+            m_api.vkCmdResetQueryPool(m_cmdBuffer, pool->m_pool, write.index, write.count);
+        }
+    }
 
     for (const CommandList::CommandSlot* slot = commandList.getCommands(); slot; slot = slot->next)
     {
@@ -685,6 +695,19 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     m_api.vkCmdBeginRenderingKHR(m_cmdBuffer, &renderingInfo);
 
     m_renderPassActive = true;
+}
+
+void CommandRecorder::cmdBeginOcclusionQuery(const commands::BeginOcclusionQuery& cmd)
+{
+    auto pool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
+    VkQueryControlFlags flags = pool->getDesc().type == QueryType::OcclusionPrecise ? VK_QUERY_CONTROL_PRECISE_BIT : 0;
+    m_api.vkCmdBeginQuery(m_cmdBuffer, pool->m_pool, cmd.queryIndex, flags);
+}
+
+void CommandRecorder::cmdEndOcclusionQuery(const commands::EndOcclusionQuery& cmd)
+{
+    auto pool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
+    m_api.vkCmdEndQuery(m_cmdBuffer, pool->m_pool, cmd.queryIndex);
 }
 
 void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)

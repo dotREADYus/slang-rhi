@@ -111,6 +111,8 @@ public:
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
     void cmdEndRenderPass(const commands::EndRenderPass& cmd);
+    void cmdBeginOcclusionQuery(const commands::BeginOcclusionQuery& cmd);
+    void cmdEndOcclusionQuery(const commands::EndOcclusionQuery& cmd);
     void cmdSetRenderState(const commands::SetRenderState& cmd);
     void cmdDraw(const commands::Draw& cmd);
     void cmdDrawIndexed(const commands::DrawIndexed& cmd);
@@ -154,6 +156,18 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     m_commandBuffer = commandBuffer->m_commandBuffer;
 
     CommandList& commandList = commandBuffer->m_commandList;
+    for (const auto& write : commandList.getQueryWrites())
+    {
+        if (isOcclusionQueryType(write.queryPool->getDesc().type))
+        {
+            auto pool = checked_cast<QueryPoolImpl*>(write.queryPool);
+            getBlitCommandEncoder()->fillBuffer(
+                pool->m_visibilityBuffer.get(),
+                NS::Range(uint64_t(write.index) * sizeof(uint64_t), uint64_t(write.count) * sizeof(uint64_t)),
+                0
+            );
+        }
+    }
     auto command = commandList.getCommands();
     while (command)
     {
@@ -429,6 +443,17 @@ void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
 
     auto encoder = getBlitCommandEncoder();
+    if (isOcclusionQueryType(queryPool->getDesc().type))
+    {
+        encoder->copyFromBuffer(
+            queryPool->m_visibilityBuffer.get(),
+            uint64_t(cmd.index) * sizeof(uint64_t),
+            buffer->m_buffer.get(),
+            cmd.offset,
+            uint64_t(cmd.count) * sizeof(uint64_t)
+        );
+        return;
+    }
     encoder->resolveCounters(
         queryPool->m_counterSampleBuffer.get(),
         NS::Range(cmd.index, cmd.count),
@@ -527,6 +552,11 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         }
     }
 
+    if (desc.occlusionQueryPool)
+        renderPassDesc->setVisibilityResultBuffer(
+            checked_cast<QueryPoolImpl*>(desc.occlusionQueryPool)->m_visibilityBuffer.get()
+        );
+
     renderPassDesc->setRenderTargetWidth(width);
     renderPassDesc->setRenderTargetHeight(height);
 
@@ -535,6 +565,22 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     getRenderCommandEncoder(renderPassDesc.get());
 
     m_renderPassActive = true;
+}
+
+void CommandRecorder::cmdBeginOcclusionQuery(const commands::BeginOcclusionQuery& cmd)
+{
+    auto pool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
+    m_renderCommandEncoder->setVisibilityResultMode(
+        pool->getDesc().type == QueryType::OcclusionPrecise ? MTL::VisibilityResultModeCounting
+                                                            : MTL::VisibilityResultModeBoolean,
+        uint64_t(cmd.queryIndex) * sizeof(uint64_t)
+    );
+}
+
+void CommandRecorder::cmdEndOcclusionQuery(const commands::EndOcclusionQuery& cmd)
+{
+    SLANG_UNUSED(cmd);
+    m_renderCommandEncoder->setVisibilityResultMode(MTL::VisibilityResultModeDisabled, 0);
 }
 
 void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
@@ -1316,6 +1362,12 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         // Get command buffer, assign updated submission id and store in the in-flight list.
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
         commandBuffer->m_submissionID = m_lastSubmittedID;
+        for (const auto& write : commandBuffer->m_commandList.getQueryWrites())
+        {
+            if (isOcclusionQueryType(write.queryPool->getDesc().type))
+                checked_cast<QueryPool*>(write.queryPool)
+                    ->markQueryRangeSubmitted(write.index, write.count, m_lastSubmittedID);
+        }
         m_commandBuffersInFlight.push_back(commandBuffer);
 
         // Signal fences if this is the last command buffer.
