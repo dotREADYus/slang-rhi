@@ -119,7 +119,7 @@ public:
     ComPtr<IComputePipeline> m_pipeline;
     RefPtr<RootShaderObject> m_rootObject;
     /// Command list, nullptr if pass encoder is not active.
-    CommandList* m_commandList;
+    CommandList* m_commandList = nullptr;
 
     ComputePassEncoder(CommandEncoder* commandEncoder);
 
@@ -158,7 +158,7 @@ public:
     ComPtr<IShaderTable> m_shaderTable;
     RefPtr<RootShaderObject> m_rootObject;
     /// Command list, nullptr if pass encoder is not active.
-    CommandList* m_commandList;
+    CommandList* m_commandList = nullptr;
 
     RayTracingPassEncoder(CommandEncoder* commandEncoder);
 
@@ -298,6 +298,8 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL clearTextureView(const TextureViewClearDesc& desc) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearTextureFloat(
         ITexture* texture,

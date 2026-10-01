@@ -1212,6 +1212,18 @@ void DebugCommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
     baseObject->clearBuffer(buffer, range);
 }
 
+Result DebugCommandEncoder::clearTextureView(const TextureViewClearDesc& desc)
+{
+    SLANG_RHI_DEBUG_API(ICommandEncoder, clearTextureView);
+    requireOpen();
+    requireNoPass();
+    // Texture views are native objects, unlike debug-wrapped textures.
+    Result result = baseObject->clearTextureView(desc);
+    if (result == SLANG_E_INVALID_ARG || result == SLANG_FAIL)
+        RHI_VALIDATION_ERROR("Invalid texture-view clear descriptor or encoder scope.");
+    return result;
+}
+
 void DebugCommandEncoder::clearTextureFloat(ITexture* texture, SubresourceRange subresourceRange, float clearValue[4])
 {
     SLANG_RHI_DEBUG_API(ICommandEncoder, clearTextureFloat);

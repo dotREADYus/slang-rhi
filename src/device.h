@@ -426,6 +426,12 @@ public:
     void printWarning(const char* message, ...);
     void printError(const char* message, ...);
 
+    // Internal references avoid a device/pipeline external-reference cycle.
+    std::mutex m_textureViewClearMutex;
+    std::map<std::vector<uint32_t>, InternalRefPtr<RenderPipeline>> m_textureViewClearPipelines;
+    Result getTextureViewClearPipeline(Format format, uint32_t samples, RenderTargetWriteMask mask,
+                                      bool clearDepth, bool clearStencil, IRenderPipeline** outPipeline);
+
     Result createShaderObject(ShaderObjectLayout* layout, ShaderObject** outObject);
     Result createRootShaderObject(ShaderProgram* program, RootShaderObject** outObject);
 

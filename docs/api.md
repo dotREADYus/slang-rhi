@@ -178,6 +178,7 @@
 | `uploadTextureData`                    | :x: | yes  | :x:   | yes   | yes    | yes   | yes  |
 | `uploadBufferData`                     | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `clearBuffer`                          | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `clearTextureView`                     | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
 | `clearTextureFloat`                    | :x: | yes  | yes   | yes   | yes    | yes   | :x:  |
 | `clearTextureUint`                     | :x: | yes  | yes   | yes   | yes    | yes   | :x:  |
 | `clearTextureSint`                     | :x: | yes  | yes   | yes   | yes    | yes   | :x:  |
@@ -319,3 +320,36 @@ with inaccurate host semantics. Existing timestamp behavior is unchanged.
 This extension adds interface methods and descriptor fields: rebuild consumers
 against the matching header/library. Backend implementation status is distinct
 from validation status; see the change's test evidence before claiming portability.
+
+
+## Texture-view rectangle and channel clears
+
+`Feature::TextureViewClear` exposes `ICommandEncoder::clearTextureView(desc)`.
+The call is outside all passes; attempting it inside a render, compute or ray
+tracing pass fails. Internal clears cannot affect application occlusion queries.
+Commands retain the supplied view and do not mutate application encoder state.
+
+The view must select exactly one mip and one layer of a 2D or 2D multisample
+texture (including array textures). Its format must support the relevant render
+attachment usage. Rectangles are half-open view-pixel coordinates, clipped to
+that mip's extent; no rectangles means the entire view. Empty/clipped-away
+rectangles are no-ops; inverted rectangles/null arrays are invalid. Layer/mip
+selection is independent of application viewport/scissor state. Clears apply to
+all samples, preserve other subresources, and retain all unselected channels or
+depth/stencil aspects. Color mask None and unselected depth/stencil aspects do
+nothing. Depth must be finite in [0,1]; stencil must fit8bits when selected.
+
+Choose `ColorClearValue`'s float member for float/normalized formats (including
+sRGB), unsigned member for unsigned integer formats, signed member for signed
+formats. Values undergo attachment format conversion. No blending occurs.
+Depth/stencil views ignore the color mask; color views reject depth/stencil flags.
+
+D3D11/D3D12/Vulkan/Metal use existing native load clears for whole-view floating
+or normalized color/all-channel and depth/stencil operations. Rectangles, masked
+channels and exact integer values use a cached internal fullscreen triangle with
+scissor/write masks and explicitly scoped depth/stencil state. The public method
+can therefore entail first-use pipeline compilation and GPU draw work; it is
+not promised to be a free native clear. Pipeline cache entries use internal
+references and are retired while the backend device is alive. CPU/CUDA/WebGPU
+return NOT_AVAILABLE and do not advertise the feature. Existing clear signatures
+and behavior are unchanged.

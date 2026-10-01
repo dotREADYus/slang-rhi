@@ -510,8 +510,9 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             attachment.resolveTarget ? checked_cast<TextureViewImpl*>(attachment.resolveTarget)->m_textureView.get()
                                      : nullptr
         );
-        colorAttachment->setLevel(view->m_desc.subresourceRange.mip);
-        colorAttachment->setSlice(view->m_desc.subresourceRange.layer);
+        // The native view already remaps the selected mip/layer to zero.
+        colorAttachment->setLevel(0);
+        colorAttachment->setSlice(0);
     }
 
     // Setup depth stencil attachment.
@@ -534,8 +535,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
                 depthAttachment->setClearDepth(attachment.depthClearValue);
             }
             depthAttachment->setTexture(view->m_textureView.get());
-            depthAttachment->setLevel(view->m_desc.subresourceRange.mip);
-            depthAttachment->setSlice(view->m_desc.subresourceRange.layer);
+            depthAttachment->setLevel(0);
+            depthAttachment->setSlice(0);
         }
         if (isStencilFormat(pixelFormat))
         {
@@ -547,8 +548,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
                 stencilAttachment->setClearStencil(attachment.stencilClearValue);
             }
             stencilAttachment->setTexture(view->m_textureView.get());
-            stencilAttachment->setLevel(view->m_desc.subresourceRange.mip);
-            stencilAttachment->setSlice(view->m_desc.subresourceRange.layer);
+            stencilAttachment->setLevel(0);
+            stencilAttachment->setSlice(0);
         }
     }
 

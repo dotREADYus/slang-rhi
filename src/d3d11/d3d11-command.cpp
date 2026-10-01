@@ -435,7 +435,7 @@ void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         {
             m_immediateContext->ClearDepthStencilView(
                 checked_cast<TextureViewImpl*>(attachment.view)->getDSV(),
-                D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
+                clearFlags,
                 attachment.depthClearValue,
                 attachment.stencilClearValue
             );
@@ -510,8 +510,8 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
     bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
-    bool updateDepthStencilState = !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
-    bool updateVertexBuffers = !m_renderStateValid || arraysEqual(
+    bool updateDepthStencilState = updatePipeline || !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
+    bool updateVertexBuffers = !m_renderStateValid || !arraysEqual(
                                                           state.vertexBufferCount,
                                                           m_renderState.vertexBufferCount,
                                                           state.vertexBuffers,
@@ -523,7 +523,7 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
     bool updateViewports =
         !m_renderStateValid ||
         arraysEqual(state.viewportCount, m_renderState.viewportCount, state.viewports, m_renderState.viewports);
-    bool updateScissorRects = !m_renderStateValid || arraysEqual(
+    bool updateScissorRects = !m_renderStateValid || !arraysEqual(
                                                          state.scissorRectCount,
                                                          m_renderState.scissorRectCount,
                                                          state.scissorRects,

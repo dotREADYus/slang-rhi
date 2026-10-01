@@ -159,6 +159,8 @@ DeviceImpl::~DeviceImpl()
     }
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
+    // Cached clear pipelines must die while the native device implementation is alive.
+    m_textureViewClearPipelines.clear();
     m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
@@ -1712,6 +1714,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::Surface);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Rasterization);
+    addFeature(Feature::TextureViewClear);
     addFeature(Feature::OcclusionQuery);
     if (m_api.m_deviceFeatures.occlusionQueryPrecise)
         addFeature(Feature::PreciseOcclusionQuery);

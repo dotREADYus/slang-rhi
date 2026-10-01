@@ -184,7 +184,8 @@ enum class DeviceType
     x(AtomicBfloat16,                           "atomic-bfloat16"                               ) \
     /* Occlusion query features (append to preserve existing enum values) */                      \
     x(OcclusionQuery,                           "occlusion-query"                               ) \
-    x(PreciseOcclusionQuery,                    "precise-occlusion-query"                       )
+    x(PreciseOcclusionQuery,                    "precise-occlusion-query"                       ) \
+    x(TextureViewClear,                         "texture-view-clear"                            )
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
@@ -2303,6 +2304,23 @@ struct Viewport
     }
 };
 
+/// Clear one 2D attachment view, selecting a single mip and array layer.
+/// Color values use the member matching the view format: float for float/normalized,
+/// uint for unsigned integer, int for signed integer. Unselected channels are preserved.
+struct TextureViewClearDesc
+{
+    ITextureView* view = nullptr;
+    ColorClearValue color = {{0.f, 0.f, 0.f, 0.f}};
+    RenderTargetWriteMask colorWriteMask = RenderTargetWriteMask::All;
+    bool clearDepth = false;
+    bool clearStencil = false;
+    DepthStencilClearValue depthStencil;
+    /// Half-open rectangles in view pixels, clipped to its extent. Zero count clears the whole view.
+    /// Empty rectangles do nothing. min > max is invalid. Viewport/scissor state is irrelevant.
+    const ScissorRect* rectangles = nullptr;
+    uint32_t rectangleCount = 0;
+};
+
 enum class WindowHandleType
 {
     Undefined,
@@ -2865,6 +2883,12 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range = kEntireBuffer) = 0;
 
     inline void clearBuffer(IBuffer* buffer, uint64_t offset, uint64_t size) { clearBuffer(buffer, {offset, size}); }
+
+    /// Requires Feature::TextureViewClear and no active pass. Clears all samples of one
+    /// selected view, preserving unselected channels/aspects. Commands retain the view.
+    /// Viewport/scissor state and application occlusion queries are unaffected.
+    /// Invalid descriptors return SLANG_E_INVALID_ARG; active pass returns SLANG_FAIL.
+    virtual SLANG_NO_THROW Result SLANG_MCALL clearTextureView(const TextureViewClearDesc& desc) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearTextureFloat(
         ITexture* texture,

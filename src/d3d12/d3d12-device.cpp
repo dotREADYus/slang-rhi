@@ -832,6 +832,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::Surface);
     addFeature(Feature::PipelineCache);
     addFeature(Feature::Rasterization);
+    addFeature(Feature::TextureViewClear);
     addFeature(Feature::OcclusionQuery);
     addFeature(Feature::PreciseOcclusionQuery);
     addFeature(Feature::CustomBorderColor);
@@ -2299,6 +2300,8 @@ DeviceImpl::~DeviceImpl()
         m_queue->waitAndReleaseCommandBuffers();
     }
 
+    // Cached clear pipelines must die while the native device implementation is alive.
+    m_textureViewClearPipelines.clear();
     m_shaderCache.free();
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
 

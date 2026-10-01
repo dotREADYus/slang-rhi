@@ -39,6 +39,8 @@ DeviceImpl::~DeviceImpl()
         m_queue->waitAndReleaseCommandBuffers();
     }
 
+    // Cached clear pipelines must die while the native device implementation is alive.
+    m_textureViewClearPipelines.clear();
     m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
@@ -238,6 +240,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::HardwareDevice);
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);
+    addFeature(Feature::TextureViewClear);
     addFeature(Feature::OcclusionQuery);
     if (m_device->supportsFamily(MTL::GPUFamilyApple3) || m_device->supportsFamily(MTL::GPUFamilyMac1))
         addFeature(Feature::PreciseOcclusionQuery);

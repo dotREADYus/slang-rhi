@@ -206,6 +206,8 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL clearTextureView(const TextureViewClearDesc& desc) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL clearTextureFloat(
         ITexture* texture,
         SubresourceRange subresourceRange,

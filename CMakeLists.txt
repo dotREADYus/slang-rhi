@@ -794,6 +794,7 @@ endif()
 target_sources(slang-rhi PRIVATE
     src/aftermath.cpp
     src/command-buffer.cpp
+    src/texture-view-clear.cpp
     src/command-list.cpp
     src/cuda-driver-api.cpp
     src/device.cpp
@@ -1076,6 +1077,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-cmd-debug.cpp
         tests/test-cmd-draw.cpp
         tests/test-cmd-occlusion.cpp
+        tests/test-cmd-clear-view.cpp
         tests/test-cmd-query.cpp
         tests/test-cmd-upload-buffer.cpp
         tests/test-cmd-upload-texture.cpp
