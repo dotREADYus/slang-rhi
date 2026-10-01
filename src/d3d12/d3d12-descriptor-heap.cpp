@@ -252,7 +252,10 @@ GPUDescriptorRange GPUDescriptorArena::allocate(uint32_t count)
     if (count > m_currentChunkSpace)
     {
         uint32_t chunkSize = max(count, m_chunkSize);
-        m_chunks.push_back(m_heap->allocate(chunkSize));
+        auto chunk = m_heap->allocate(chunkSize);
+        if (!chunk)
+            return {};
+        m_chunks.push_back(chunk);
         m_currentChunkSpace = chunkSize;
         m_currentChunkOffset = 0;
     }
