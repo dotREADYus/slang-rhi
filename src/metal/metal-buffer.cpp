@@ -2,6 +2,7 @@
 #include "metal-command.h"
 #include "metal-device.h"
 #include "metal-utils.h"
+#include <unistd.h>
 
 namespace rhi::metal {
 
@@ -53,6 +54,16 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
     BufferDesc desc = fixupBufferDesc(desc_);
 
+    const auto* hostMemory = findStructInChain<MetalBufferHostMemoryDesc>(desc_.next);
+    if (hostMemory)
+    {
+        const auto pageSize = size_t(sysconf(_SC_PAGESIZE));
+        if (!hostMemory->data || !desc.size || initData || desc.memoryType == MemoryType::DeviceLocal ||
+            reinterpret_cast<uintptr_t>(hostMemory->data) % pageSize || desc.size % pageSize)
+            return SLANG_E_INVALID_ARG;
+        // Do not retain the caller's temporary descriptor chain.
+        desc.next = nullptr;
+    }
     const Size bufferSize = desc.size;
 
     MTL::ResourceOptions resourceOptions = MTL::ResourceOptions(0);
@@ -73,7 +84,10 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     }
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
-    buffer->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
+    buffer->m_buffer = NS::TransferPtr(
+        hostMemory ? m_device->newBuffer(hostMemory->data, bufferSize, resourceOptions, nullptr)
+                   : m_device->newBuffer(bufferSize, resourceOptions)
+    );
     if (!buffer->m_buffer)
     {
         return SLANG_FAIL;

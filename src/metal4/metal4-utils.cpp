@@ -67,7 +67,7 @@ const FormatMapping& getFormatMapping(Format format)
         { Format::R64Uint,          MTL::PixelFormatInvalid,                MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
         { Format::R64Sint,          MTL::PixelFormatInvalid,                MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
 
-        { Format::BGRA4Unorm,       MTL::PixelFormatInvalid,                MTL::VertexFormatUChar4Normalized_BGRA, MTL::AttributeFormatUChar4Normalized_BGRA   },
+        { Format::BGRA4Unorm,       MTL::PixelFormatABGR4Unorm,                MTL::VertexFormatUChar4Normalized_BGRA, MTL::AttributeFormatUChar4Normalized_BGRA   },
         { Format::B5G6R5Unorm,      MTL::PixelFormatB5G6R5Unorm,            MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
         { Format::BGR5A1Unorm,      MTL::PixelFormatBGR5A1Unorm,            MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
 

@@ -87,6 +87,8 @@ enum class StructType
     D3D12ExperimentalFeaturesDesc,
 
     VulkanDeviceExtendedDesc,
+    MetalBufferHostMemoryDesc,
+    MetalTextureSwizzleDesc,
 };
 
 // TODO: Implementation or backend or something else?
@@ -801,6 +803,19 @@ struct BufferDesc
     const char* label = nullptr;
 };
 
+/// Metal/Metal4-only extension for BufferDesc::next. Wraps page-aligned host memory
+/// without copying. Only Upload/ReadBack memory is accepted; initData must be null.
+/// The caller owns the allocation and must keep it alive until all GPU readers and
+/// the buffer have retired. Size and address must be multiples of the OS page size.
+/// Other backends do not support this extension; callers must select a Metal device.
+struct MetalBufferHostMemoryDesc
+{
+    static constexpr StructType kStructType = StructType::MetalBufferHostMemoryDesc;
+    StructType structType = kStructType;
+    const void* next = nullptr;
+    void* data = nullptr;
+};
+
 class IBuffer : public IResource
 {
     SLANG_COM_INTERFACE(0xf3eeb08f, 0xa0cc, 0x4eea, {0x93, 0xfd, 0x2a, 0xfe, 0x95, 0x1c, 0x7f, 0x63});
@@ -1047,6 +1062,16 @@ class ISampler;
 static const uint32_t kAllLayers = 0xffffffff;
 static const uint32_t kAllMips = 0xffffffff;
 static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMips};
+
+/// Metal/Metal4-only extension for TextureDesc::next. Components use Metal's
+/// Zero, One, Red, Green, Blue, Alpha values (0 through 5). Applied to all views.
+struct MetalTextureSwizzleDesc
+{
+    static constexpr StructType kStructType = StructType::MetalTextureSwizzleDesc;
+    StructType structType = kStructType;
+    const void* next = nullptr;
+    uint32_t components[4] = {2, 3, 4, 5};
+};
 
 struct TextureDesc
 {

@@ -404,3 +404,29 @@ and subsequent work may overlap a sample; durations are not exclusive GPU costs.
 The classic `DeviceType::Metal` backend remains separate and does not advertise
 `TimestampQuery`; its timestamp recording implementation remains unavailable and pool creation
 returns `NOT_AVAILABLE` rather than creating an unwritten counter pool.
+
+
+## Metal resource creation extensions
+
+`MetalBufferHostMemoryDesc` in `BufferDesc::next` wraps caller-owned, OS-page-aligned
+host storage without a copy on `Metal` and `Metal4`. Buffer size must also be page
+aligned. Memory type must be Upload or ReadBack and initialization data must be
+null. The application retains the allocation until the buffer and all GPU users
+retire; RHI does not free it. Normal RHI buffer binding, residency, mapping and
+command retention apply. Other backends do not implement this platform extension;
+applications must select a Metal device before using it.
+
+`MetalTextureSwizzleDesc` in `TextureDesc::next` controls sampled channel mapping
+at creation on Metal and Metal4. Its component values match Metal's Zero, One,
+Red, Green, Blue and Alpha values (0–5); invalid values are rejected. Mip views
+inherit the mapping. Descriptor chains are consumed at creation, not retained.
+BGRA4Unorm is now allocatable using Metal ABGR4 storage with the G/B/A/R mapping
+needed for RHI's packed byte layout. Upload/readback still transport the original
+packed bytes; sampled values observe the channel mapping. RenderTarget and
+UnorderedAccess usage for BGRA4 remain unavailable because native writes do not
+apply the sampled channel mapping. GPU-ordered staging
+uploads use the existing public command encoder API.
+
+Regression tests cover no-copy storage identity and lifetime, invalid descriptors,
+a staged mip upload followed by sampled compute output, CPU mutation after
+recording, swizzled sampling, and raw texture readback on both Metal backends.

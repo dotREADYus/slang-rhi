@@ -62,6 +62,14 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     AUTORELEASEPOOL
 
     TextureDesc desc = fixupTextureDesc(desc_);
+    const auto* creationSwizzle = findStructInChain<MetalTextureSwizzleDesc>(desc_.next);
+    if (creationSwizzle)
+    {
+        for (auto component : creationSwizzle->components)
+            if (component > 5)
+                return SLANG_E_INVALID_ARG;
+        desc.next = nullptr;
+    }
 
     // Metal doesn't support mip-mapping for 1D textures
     if ((desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipCount > 1)
@@ -74,6 +82,9 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         return SLANG_E_NOT_AVAILABLE;
     }
 
+    if (desc.format == Format::BGRA4Unorm &&
+        is_set(desc.usage, TextureUsage::RenderTarget | TextureUsage::UnorderedAccess))
+        return SLANG_E_NOT_AVAILABLE;
     const MTL::PixelFormat pixelFormat = translatePixelFormat(desc.format);
     if (pixelFormat == MTL::PixelFormat::PixelFormatInvalid)
     {
@@ -135,6 +146,24 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     }
 
     textureDesc->setUsage(textureUsage);
+    if (creationSwizzle)
+        textureDesc->setSwizzle(
+            MTL::TextureSwizzleChannels::Make(
+                MTL::TextureSwizzle(creationSwizzle->components[0]),
+                MTL::TextureSwizzle(creationSwizzle->components[1]),
+                MTL::TextureSwizzle(creationSwizzle->components[2]),
+                MTL::TextureSwizzle(creationSwizzle->components[3])
+            )
+        );
+    else if (desc.format == Format::BGRA4Unorm)
+        textureDesc->setSwizzle(
+            MTL::TextureSwizzleChannels::Make(
+                MTL::TextureSwizzleGreen,
+                MTL::TextureSwizzleBlue,
+                MTL::TextureSwizzleAlpha,
+                MTL::TextureSwizzleRed
+            )
+        );
     textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);
     SLANG_RHI_ASSERT(textureDesc->storageMode() != MTL::StorageModeManaged);
     textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
@@ -223,6 +252,14 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
     MTL::Texture* nativeTexture = reinterpret_cast<MTL::Texture*>(handle.value);
 
     TextureDesc desc = fixupTextureDesc(desc_);
+    const auto* creationSwizzle = findStructInChain<MetalTextureSwizzleDesc>(desc_.next);
+    if (creationSwizzle)
+    {
+        for (auto component : creationSwizzle->components)
+            if (component > 5)
+                return SLANG_E_INVALID_ARG;
+        desc.next = nullptr;
+    }
     const MTL::TextureType nativeTextureType = nativeTexture->textureType();
     const MTL::PixelFormat nativePixelFormat = nativeTexture->pixelFormat();
     const MTL::PixelFormat descPixelFormat = translatePixelFormat(desc.format);
@@ -236,7 +273,8 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
         swizzle.red == MTL::TextureSwizzleGreen && swizzle.green == MTL::TextureSwizzleBlue &&
         swizzle.blue == MTL::TextureSwizzleAlpha && swizzle.alpha == MTL::TextureSwizzleRed &&
         (desc.usage & ~(TextureUsage::ShaderResource | TextureUsage::CopySource)) == TextureUsage::None;
-    if ((!packedBGRA4 && (descPixelFormat == MTL::PixelFormatInvalid || descPixelFormat != nativePixelFormat)) ||
+    if ((desc.format == Format::BGRA4Unorm && !packedBGRA4) ||
+        (!packedBGRA4 && (descPixelFormat == MTL::PixelFormatInvalid || descPixelFormat != nativePixelFormat)) ||
         translateTextureType(desc.type) != nativeTextureType || desc.size.width != nativeTexture->width() ||
         desc.size.height != nativeTexture->height() || desc.size.depth != nativeTexture->depth() ||
         desc.mipCount != nativeTexture->mipmapLevelCount() || desc.arrayLength != nativeTexture->arrayLength() ||
