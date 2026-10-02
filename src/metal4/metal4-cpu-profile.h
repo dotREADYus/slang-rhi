@@ -15,6 +15,7 @@ inline bool enabled()
 inline thread_local double milliseconds[7]{};
 inline thread_local unsigned long long calls[7]{};
 inline thread_local unsigned long long argumentEntryWrites = 0, argumentEntrySkips = 0;
+inline thread_local unsigned long long bindingReuseCalls = 0, samplerRetains = 0, samplerRetainSkips = 0;
 struct Scope
 {
     unsigned phase;
@@ -48,7 +49,7 @@ inline void emit()
                 "wall_s,track_ms,layout_ms,build_binding_ms,resolve_pipeline_ms,record_native_ms,argument_table_ms,"
                 "argument_table_alloc_ms,"
                 "track_calls,layout_calls,build_binding_calls,resolve_pipeline_calls,record_native_calls,argument_"
-                "table_calls,argument_table_alloc_calls,argument_entry_write_calls,argument_entry_skip_calls\n"
+                "table_calls,argument_table_alloc_calls,argument_entry_write_calls,argument_entry_skip_calls,binding_reuse_calls,sampler_retain_calls,sampler_retain_skip_calls\n"
             );
         return f;
     }();
@@ -65,9 +66,10 @@ inline void emit()
             std::fprintf(file, ",%.6f", ms);
         for (auto count : calls)
             std::fprintf(file, ",%llu", count);
-        std::fprintf(file, ",%llu,%llu\n", argumentEntryWrites, argumentEntrySkips);
+        std::fprintf(file, ",%llu,%llu,%llu,%llu,%llu\n", argumentEntryWrites, argumentEntrySkips, bindingReuseCalls, samplerRetains, samplerRetainSkips);
     }
     argumentEntryWrites = argumentEntrySkips = 0;
+    bindingReuseCalls = samplerRetains = samplerRetainSkips = 0;
     for (auto& ms : milliseconds)
         ms = 0.;
     for (auto& count : calls)

@@ -114,3 +114,14 @@ active slot, including zero entries. Resource retention and immutable draw
 snapshots are unchanged. `SLANG_RHI_ARGUMENT_DELTAS=0` restores full entry writes
 for same-binary controls. CPU detail CSV includes `argument_entry_write_calls`
 and `argument_entry_skip_calls`; keep diagnostics off for throughput controls.
+
+Metal4 native binding setters cache object pointers per encoder slot. An unchanged
+buffer reuses its GPU base address while still applying the current byte offset;
+unchanged textures/samplers reuse their resource IDs. Changed resources still pass
+through command-buffer retention. Samplers are retained once per native object per
+command buffer, including when switching away and back or using another encoder.
+All retained objects survive command-buffer completion. `SLANG_RHI_BINDING_REUSE=0`
+restores repeated queries and sampler retains for same-binary controls. Detailed
+CSV adds `binding_reuse_calls`, `sampler_retain_calls` and
+`sampler_retain_skip_calls` (the last counts cross-slot/encoder deduplication,
+not same-slot skips, which are included in binding reuse).

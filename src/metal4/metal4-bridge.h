@@ -67,6 +67,10 @@ public:
 };
 struct Bindings
 {
+    MTL::Buffer* bufferResources[31]{};
+    MTL::Texture* textureResources[128]{};
+    MTL::SamplerState* samplerResources[16]{};
+    uint64_t bufferBases[31]{};
     uint64_t buffers[31]{};
     uint64_t textures[128]{};
     uint64_t samplers[16]{};
@@ -154,6 +158,7 @@ public:
     void popDebugGroup();
     void* nativeHandle() const { return m_native; }
     void retainResource(MTL::Resource*);
+    void retainSampler(MTL::SamplerState*);
     void* snapshot(Bindings&);
     CommandQueue* m_queue;
     void* m_native = nullptr;
@@ -163,6 +168,7 @@ public:
     std::vector<Encoder*> m_encoders;
     std::vector<void*> m_objects;
     std::unordered_set<MTL::Resource*> m_resources;
+    std::unordered_set<MTL::SamplerState*> m_samplers;
     std::vector<std::pair<MTL::Event*,uint64_t>> m_waits, m_signals;
     CA::MetalDrawable* m_drawable = nullptr;
     bool m_committed = false;

@@ -156,6 +156,25 @@ void CommandBuffer::retainResource(MTL::Resource* r)
     m_objects.push_back([OB(NSObject,r) retain]);
     [OB(MTLResidencySet,m_residency) addAllocation:OB(MTLAllocation,r)];
 }
+static bool bindingReuseEnabled()
+{
+    static const bool enabled = [] {
+        const char* value = std::getenv("SLANG_RHI_BINDING_REUSE");
+        return !value || std::strcmp(value, "0") != 0;
+    }();
+    return enabled;
+}
+void CommandBuffer::retainSampler(MTL::SamplerState* sampler)
+{
+    if (!sampler) return;
+    if (bindingReuseEnabled() && !m_samplers.insert(sampler).second)
+    {
+        if (cpu_profile::enabled()) ++cpu_profile::samplerRetainSkips;
+        return;
+    }
+    m_objects.push_back([OB(NSObject,sampler) retain]);
+    if (cpu_profile::enabled()) ++cpu_profile::samplerRetains;
+}
 void* CommandBuffer::snapshot(Bindings& b)
 {
     if (!b.dirty) return b.table;
@@ -289,15 +308,46 @@ void Encoder::useResources(const MTL::Resource* const* resources,NS::UInteger co
 }
 static void buffers(CommandBuffer* cb, Bindings& b, MTL::Buffer* const* r,const NS::UInteger* offsets,NS::Range range) {
     SLANG_RHI_ASSERT(range.location+range.length<=31);
-    for (NS::UInteger i=0;i<range.length;++i) { b.buffers[range.location+i]=r[i]?r[i]->gpuAddress()+offsets[i]:0; cb->retainResource(r[i]); } b.bufferCount=std::max(b.bufferCount,unsigned(range.location+range.length)); b.dirty=true;
+    for (NS::UInteger i=0;i<range.length;++i) {
+        const auto slot = range.location + i;
+        if (bindingReuseEnabled() && b.bufferResources[slot] == r[i]) {
+            if (cpu_profile::enabled()) ++cpu_profile::bindingReuseCalls;
+        } else {
+            b.bufferBases[slot] = r[i] ? r[i]->gpuAddress() : 0;
+            cb->retainResource(r[i]);
+            b.bufferResources[slot] = r[i];
+        }
+        b.buffers[slot] = r[i] ? b.bufferBases[slot] + offsets[i] : 0;
+    }
+    b.bufferCount=std::max(b.bufferCount,unsigned(range.location+range.length)); b.dirty=true;
 }
 static void textures(CommandBuffer* cb, Bindings& b,MTL::Texture* const* r,NS::Range range) {
     SLANG_RHI_ASSERT(range.location+range.length<=128);
-    for(NS::UInteger i=0;i<range.length;++i) { b.textures[range.location+i]=r[i]?r[i]->gpuResourceID()._impl:0; cb->retainResource(r[i]); } b.textureCount=std::max(b.textureCount,unsigned(range.location+range.length)); b.dirty=true;
+    for(NS::UInteger i=0;i<range.length;++i) {
+        const auto slot = range.location + i;
+        if (bindingReuseEnabled() && b.textureResources[slot] == r[i]) {
+            if (cpu_profile::enabled()) ++cpu_profile::bindingReuseCalls;
+        } else {
+            b.textures[slot] = r[i] ? r[i]->gpuResourceID()._impl : 0;
+            cb->retainResource(r[i]);
+            b.textureResources[slot] = r[i];
+        }
+    }
+    b.textureCount=std::max(b.textureCount,unsigned(range.location+range.length)); b.dirty=true;
 }
 static void samplers(CommandBuffer* cb, Bindings& b, MTL::SamplerState* const* r,NS::Range range) {
     SLANG_RHI_ASSERT(range.location+range.length<=16);
-    for(NS::UInteger i=0;i<range.length;++i) { b.samplers[range.location+i]=r[i]?r[i]->gpuResourceID()._impl:0; if(r[i]) cb->m_objects.push_back([OB(NSObject,r[i]) retain]); } b.samplerCount=std::max(b.samplerCount,unsigned(range.location+range.length)); b.dirty=true;
+    for(NS::UInteger i=0;i<range.length;++i) {
+        const auto slot = range.location + i;
+        if (bindingReuseEnabled() && b.samplerResources[slot] == r[i]) {
+            if (cpu_profile::enabled()) ++cpu_profile::bindingReuseCalls;
+        } else {
+            b.samplers[slot] = r[i] ? r[i]->gpuResourceID()._impl : 0;
+            cb->retainSampler(r[i]);
+            b.samplerResources[slot] = r[i];
+        }
+    }
+    b.samplerCount=std::max(b.samplerCount,unsigned(range.location+range.length)); b.dirty=true;
 }
 void RenderCommandEncoder::setVertexBuffers(MTL::Buffer* const* r,const NS::UInteger* o,NS::Range n) { buffers(m_buffer,m_vertex,r,o,n); }
 void RenderCommandEncoder::setFragmentBuffers(MTL::Buffer* const* r,const NS::UInteger* o,NS::Range n) { buffers(m_buffer,m_fragment,r,o,n); }
