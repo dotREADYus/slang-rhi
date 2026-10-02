@@ -225,8 +225,18 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
     const MTL::TextureType nativeTextureType = nativeTexture->textureType();
     const MTL::PixelFormat nativePixelFormat = nativeTexture->pixelFormat();
     const MTL::PixelFormat descPixelFormat = translatePixelFormat(desc.format);
-    if (descPixelFormat == MTL::PixelFormatInvalid || translateTextureType(desc.type) != nativeTextureType ||
-        descPixelFormat != nativePixelFormat || desc.size.width != nativeTexture->width() ||
+    // Import-only compatibility: BGRA4 memory uses B/G/R/A from low to high nibbles.
+    // Metal exposes the same bits as ABGR4; a G/B/A/R sampling swizzle restores
+    // BGRA4 semantics without expanding storage. Writes through that swizzle are
+    // not equivalent, so this alias is restricted to read/copy-source usage.
+    const auto swizzle = nativeTexture->swizzle();
+    const bool packedBGRA4 =
+        desc.format == Format::BGRA4Unorm && nativePixelFormat == MTL::PixelFormatABGR4Unorm &&
+        swizzle.red == MTL::TextureSwizzleGreen && swizzle.green == MTL::TextureSwizzleBlue &&
+        swizzle.blue == MTL::TextureSwizzleAlpha && swizzle.alpha == MTL::TextureSwizzleRed &&
+        (desc.usage & ~(TextureUsage::ShaderResource | TextureUsage::CopySource)) == TextureUsage::None;
+    if ((!packedBGRA4 && (descPixelFormat == MTL::PixelFormatInvalid || descPixelFormat != nativePixelFormat)) ||
+        translateTextureType(desc.type) != nativeTextureType || desc.size.width != nativeTexture->width() ||
         desc.size.height != nativeTexture->height() || desc.size.depth != nativeTexture->depth() ||
         desc.mipCount != nativeTexture->mipmapLevelCount() || desc.arrayLength != nativeTexture->arrayLength() ||
         desc.sampleCount != nativeTexture->sampleCount())
@@ -270,14 +280,19 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
         return SLANG_OK;
     }
 
-    MTL::PixelFormat pixelFormat =
-        desc.format == Format::Undefined ? textureImpl->m_pixelFormat : translatePixelFormat(desc.format);
+    MTL::PixelFormat pixelFormat = desc.format == Format::Undefined || desc.format == textureDesc.format
+                                       ? textureImpl->m_pixelFormat
+                                       : translatePixelFormat(desc.format);
     NS::Range sliceRange(sr.layer, sr.layerCount);
     NS::Range levelRange(sr.mip, sr.mipCount);
 
-    viewImpl->m_textureView = NS::TransferPtr(
-        textureImpl->m_texture->newTextureView(pixelFormat, textureImpl->m_textureType, levelRange, sliceRange)
-    );
+    viewImpl->m_textureView = NS::TransferPtr(textureImpl->m_texture->newTextureView(
+        pixelFormat,
+        textureImpl->m_textureType,
+        levelRange,
+        sliceRange,
+        textureImpl->m_texture->swizzle()
+    ));
     if (!viewImpl->m_textureView)
     {
         return SLANG_FAIL;
