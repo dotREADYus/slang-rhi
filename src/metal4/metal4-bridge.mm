@@ -9,6 +9,8 @@
 #import <QuartzCore/CAMetalLayer.h>
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <unordered_set>
 
 namespace rhi::metal4::api {
@@ -161,6 +163,11 @@ void* CommandBuffer::snapshot(Bindings& b)
     // Metal snapshots table contents at draw/dispatch encoding, not GPU execution.
     // Reuse the encoder's table while retaining all referenced resources through
     // command-buffer completion. Grow only when a later pipeline needs more slots.
+    static const bool delta = [] {
+        const char* value = std::getenv("SLANG_RHI_ARGUMENT_DELTAS");
+        return !value || std::strcmp(value, "0") != 0;
+    }();
+    bool initialize = false;
     auto t = OB(MTL4ArgumentTable, b.table);
     if (!t || b.bufferCount > b.tableBufferCount || b.textureCount > b.tableTextureCount ||
         b.samplerCount > b.tableSamplerCount)
@@ -180,10 +187,28 @@ void* CommandBuffer::snapshot(Bindings& b)
         b.tableBufferCount = b.bufferCount;
         b.tableTextureCount = b.textureCount;
         b.tableSamplerCount = b.samplerCount;
+        initialize = true;
     }
-    for (NSUInteger i=0;i<b.bufferCount;++i) [t setAddress:b.buffers[i] atIndex:i];
-    for (NSUInteger i=0;i<b.textureCount;++i) [t setTexture:MTLResourceID{b.textures[i]} atIndex:i];
-    for (NSUInteger i=0;i<b.samplerCount;++i) [t setSamplerState:MTLResourceID{b.samplers[i]} atIndex:i];
+    // Newly allocated/grown tables require every active entry, including holes.
+    // Resource retention still happens at the binding setters even for equal IDs.
+    auto update = [&](uint64_t* current, uint64_t* previous, unsigned count, auto write) {
+        for (unsigned i = 0; i < count; ++i)
+        {
+            if (!delta || initialize || current[i] != previous[i])
+            {
+                write(current[i], i);
+                previous[i] = current[i];
+                if (cpu_profile::enabled()) ++cpu_profile::argumentEntryWrites;
+            }
+            else if (cpu_profile::enabled()) ++cpu_profile::argumentEntrySkips;
+        }
+    };
+    update(b.buffers, b.tableBuffers, b.bufferCount,
+           [&](uint64_t value, unsigned i) { [t setAddress:value atIndex:i]; });
+    update(b.textures, b.tableTextures, b.textureCount,
+           [&](uint64_t value, unsigned i) { [t setTexture:MTLResourceID{value} atIndex:i]; });
+    update(b.samplers, b.tableSamplers, b.samplerCount,
+           [&](uint64_t value, unsigned i) { [t setSamplerState:MTLResourceID{value} atIndex:i]; });
     b.dirty = false;
     return t;
 }

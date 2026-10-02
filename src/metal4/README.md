@@ -106,3 +106,11 @@ the arrays in the command-buffer arena, retaining zeroed holes and all populated
 entries. The existing 256-slot limit is unchanged. Snapshot and uniform data remain
 independent for each recorded draw. `SLANG_RHI_COMPACT_BINDINGS=0` restores fixed
 256-slot allocation for same-binary performance controls.
+
+Metal4 argument-table updates compare buffer addresses (including offsets),
+texture IDs and sampler IDs with the current table's last written entries. Equal
+entries skip native setters; newly allocated or grown tables initialize every
+active slot, including zero entries. Resource retention and immutable draw
+snapshots are unchanged. `SLANG_RHI_ARGUMENT_DELTAS=0` restores full entry writes
+for same-binary controls. CPU detail CSV includes `argument_entry_write_calls`
+and `argument_entry_skip_calls`; keep diagnostics off for throughput controls.

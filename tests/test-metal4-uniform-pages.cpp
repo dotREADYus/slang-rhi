@@ -119,6 +119,23 @@ GPU_TEST_CASE("metal4-argument-table-reuse", Metal4)
     auto queue = device->getQueue(QueueType::Graphics);
     // Two command buffers also exercise retirement/recreation. Earlier commands
     // must preserve resources and sampler choices despite later root mutations.
+    // Start with a buffer-only layout, then grow the same compute encoder's
+    // argument table with textures/samplers and return to the smaller layout.
+    ComPtr<IShaderProgram> smallProgram;
+    REQUIRE_CALL(loadAndLinkProgram(device, "test-metal4-uniform-pages", "computeMain", smallProgram.writeRef()));
+    ComputePipelineDesc smallDesc{};
+    smallDesc.program = smallProgram;
+    auto smallPipeline = device->createComputePipeline(smallDesc);
+    REQUIRE(smallPipeline);
+    BufferDesc smallBufferDesc{};
+    smallBufferDesc.size = 2 * sizeof(uint32_t);
+    smallBufferDesc.elementSize = sizeof(uint32_t);
+    smallBufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    auto smallOutput = device->createBuffer(smallBufferDesc);
+    auto smallRoot = device->createRootShaderObject(smallPipeline);
+    REQUIRE(smallOutput);
+    REQUIRE(smallRoot);
+    REQUIRE_CALL(ShaderCursor(smallRoot)["output"].setBinding(smallOutput));
     auto croot = device->createRootShaderObject(compute);
     auto rroot = device->createRootShaderObject(render);
     REQUIRE(croot);
@@ -137,6 +154,16 @@ GPU_TEST_CASE("metal4-argument-table-reuse", Metal4)
             REQUIRE_CALL(c["parameters"]["bias"].setData(bias));
         };
         auto computePass = encoder->beginComputePass();
+        auto smallDispatch = [&](uint32_t index, uint32_t value) {
+            auto c = ShaderCursor(smallRoot);
+            REQUIRE_CALL(c["parameters"]["index"].setData(index));
+            REQUIRE_CALL(c["parameters"]["value"].setData(value));
+            const float tail = 9.f;
+            REQUIRE_CALL(c["parameters"]["padding"][253].setData(tail));
+            computePass->bindPipeline(smallPipeline, smallRoot);
+            computePass->dispatchCompute(1, 1, 1);
+        };
+        smallDispatch(0, 77);
         computePass->bindPipeline(compute, croot);
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -144,6 +171,7 @@ GPU_TEST_CASE("metal4-argument-table-reuse", Metal4)
             REQUIRE_CALL(ShaderCursor(croot)["output"].setBinding(outputs[i % 2]));
             computePass->dispatchCompute(1, 1, 1);
         }
+        smallDispatch(1, 88);
         computePass->end();
         RenderPassColorAttachment attachment{};
         attachment.view = colorView;
@@ -183,6 +211,8 @@ GPU_TEST_CASE("metal4-argument-table-reuse", Metal4)
         REQUIRE_CALL(ShaderCursor(croot)["output"].setBinding(static_cast<IBuffer*>(nullptr)));
         REQUIRE_CALL(queue->submit(commands));
         REQUIRE_CALL(queue->waitOnHost());
+        const uint32_t smallExpected[] = {86, 97};
+        compareComputeResult(device, smallOutput, std::span<const uint32_t>(smallExpected));
         float computeValues[2][count / 2 * 4]{};
         for (uint32_t i = 0; i < 2; ++i)
             REQUIRE_CALL(device->readBuffer(outputs[i], 0, bd.size, computeValues[i]));

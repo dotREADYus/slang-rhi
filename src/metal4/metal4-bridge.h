@@ -70,6 +70,8 @@ struct Bindings
     uint64_t buffers[31]{};
     uint64_t textures[128]{};
     uint64_t samplers[16]{};
+    // Mirror entries last written into the current native argument table.
+    uint64_t tableBuffers[31]{}, tableTextures[128]{}, tableSamplers[16]{};
     unsigned bufferCount=0, textureCount=0, samplerCount=0;
     unsigned tableBufferCount = 0, tableTextureCount = 0, tableSamplerCount = 0;
     bool dirty = true;
