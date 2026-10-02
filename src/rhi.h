@@ -50,7 +50,7 @@ private:
     DebugLayerOptions m_debugLayerOptions = {};
     std::atomic<uint32_t> m_liveDeviceCount = 0;
     std::mutex m_backendsMutex;
-    RefPtr<Backend> m_backends[8]; // indexed by DeviceType
+    RefPtr<Backend> m_backends[9]; // indexed by DeviceType
 };
 
 } // namespace rhi

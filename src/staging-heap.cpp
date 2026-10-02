@@ -18,7 +18,7 @@ void StagingHeap::initialize(Device* device, Size pageSize, MemoryType memoryTyp
     // If this gets any more complex, should init staging heap separately per device
     // with correct configs, but for a single bool that seems overkill.
     m_keepPagesMapped =
-        !(device->getInfo().deviceType == DeviceType::WGPU || device->getInfo().deviceType == DeviceType::Metal);
+        !(device->getInfo().deviceType == DeviceType::WGPU || (device->getInfo().deviceType == DeviceType::Metal || device->getInfo().deviceType == DeviceType::Metal4));
 }
 
 void StagingHeap::releaseAllFreePages()

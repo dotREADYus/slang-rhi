@@ -562,6 +562,8 @@ const char* deviceTypeToString(DeviceType deviceType)
         return "vulkan";
     case DeviceType::Metal:
         return "metal";
+    case DeviceType::Metal4:
+        return "metal4";
     case DeviceType::CPU:
         return "cpu";
     case DeviceType::CUDA:
@@ -1191,7 +1193,8 @@ int registerGpuTest(
 {
     static GpuTestAllocator allocator;
 
-    for (int i = 1; i <= 7; i++)
+    if (flags & GpuTestFlags::Metal) flags = GpuTestFlags(flags | GpuTestFlags::Metal4);
+    for (int i = 1; i <= int(DeviceType::Metal4); i++)
     {
         if ((flags & (1 << i)) == 0)
             continue;

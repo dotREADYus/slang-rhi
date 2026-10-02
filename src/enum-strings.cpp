@@ -33,6 +33,8 @@ const char* enumToString(DeviceType value)
         return S_DeviceType_Vulkan;
     case DeviceType::Metal:
         return S_DeviceType_Metal;
+    case DeviceType::Metal4:
+        return S_DeviceType_Metal4;
     case DeviceType::CPU:
         return S_DeviceType_CPU;
     case DeviceType::CUDA:

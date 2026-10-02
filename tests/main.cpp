@@ -103,7 +103,7 @@ int main(int argc, const char** argv)
                 for (rhi::DeviceType deviceType : rhi::testing::kPlatformDeviceTypes)
                 {
                     doctest::String deviceTypeStr = rhi::testing::deviceTypeToString(deviceType);
-                    if (str == deviceTypeStr || str.substr(0, deviceTypeStr.size()) == deviceTypeStr)
+                    if (str == deviceTypeStr || (str.size() > deviceTypeStr.size() && str[deviceTypeStr.size()] == ':' && str.substr(0, deviceTypeStr.size()) == deviceTypeStr))
                     {
                         options.deviceSelected[size_t(deviceType)] = true;
                         if (str.size() > deviceTypeStr.size() + 1 && str[deviceTypeStr.size()] == ':')

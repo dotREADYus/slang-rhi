@@ -25,7 +25,7 @@ GPU_TEST_CASE("sampler-array", D3D12 | Vulkan | Metal)
 {
     if (device->getDeviceType() == DeviceType::Vulkan && SLANG_APPLE_FAMILY)
         SKIP("not supported on MoltenVK");
-    if (device->getDeviceType() == DeviceType::Metal)
+    if ((device->getDeviceType() == DeviceType::Metal || device->getDeviceType() == DeviceType::Metal4))
         SKIP("skipped due to regression in Slang v2025.18.2");
     if (!device->hasFeature(Feature::ParameterBlock))
         SKIP("no support for parameter blocks");

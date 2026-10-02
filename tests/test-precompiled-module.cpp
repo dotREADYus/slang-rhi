@@ -22,6 +22,7 @@ static slang::TargetDesc getTargetDesc(DeviceType deviceType, slang::IGlobalSess
         targetDesc.format = SLANG_SPIRV;
         targetDesc.profile = globalSession->findProfile("GLSL_460");
         break;
+    case DeviceType::Metal4:
     case DeviceType::Metal:
         targetDesc.format = SLANG_METAL_LIB;
         targetDesc.profile = globalSession->findProfile("");

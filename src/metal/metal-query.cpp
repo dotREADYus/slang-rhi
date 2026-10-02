@@ -58,6 +58,11 @@ Result QueryPoolImpl::init()
         return m_visibilityBuffer ? SLANG_OK : SLANG_FAIL;
     }
 
+    // Recording timestamps is not implemented by the classic backend. Do not
+    // create a pool that would silently return unwritten counter data.
+    if (m_desc.type == QueryType::Timestamp && !device->hasFeature(Feature::TimestampQuery))
+        return SLANG_E_NOT_AVAILABLE;
+
     MTL::CounterSet* counterSet = findCounterSet(device->m_device.get(), m_desc.type);
     if (!counterSet)
     {

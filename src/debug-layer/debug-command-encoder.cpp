@@ -1405,6 +1405,7 @@ void DebugCommandEncoder::clearTextureDepthStencil(
             return;
         }
         break;
+    case DeviceType::Metal4:
     case DeviceType::Metal:
         break;
     case DeviceType::WGPU:

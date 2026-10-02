@@ -31,6 +31,8 @@ NativeHandleType getExpectedNativeHandleType(DeviceType deviceType)
         return NativeHandleType::D3D12GraphicsCommandList;
     case DeviceType::Vulkan:
         return NativeHandleType::VkCommandBuffer;
+    case DeviceType::Metal4:
+        return NativeHandleType::MTL4CommandBuffer;
     case DeviceType::Metal:
         return NativeHandleType::MTLCommandBuffer;
     case DeviceType::CUDA:
@@ -48,6 +50,7 @@ bool releasesCallbackObjectsOnQueueWait(DeviceType deviceType)
     {
     case DeviceType::D3D12:
     case DeviceType::Vulkan:
+    case DeviceType::Metal4:
     case DeviceType::Metal:
     case DeviceType::CUDA:
         return true;
@@ -143,7 +146,7 @@ GPU_TEST_CASE("execute-callback-native-handle-and-user-data", ALL)
         CHECK(record.handles[1].value == queueHandle.value);
     }
     else if (ctx->deviceType == DeviceType::D3D12 || ctx->deviceType == DeviceType::Vulkan ||
-             ctx->deviceType == DeviceType::Metal)
+             (ctx->deviceType == DeviceType::Metal || ctx->deviceType == DeviceType::Metal4))
     {
         NativeHandle commandBufferHandle = {};
         REQUIRE_CALL(commandBuffer->getNativeHandle(&commandBufferHandle));

@@ -29,11 +29,11 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
     if (device->getDeviceType() == DeviceType::WGPU && desc.type == TextureType::Texture1DArray)
         return false;
     // Metal does not support mip levels for 1D textures (and 1d texture arrays).
-    if (device->getDeviceType() == DeviceType::Metal &&
+    if ((device->getDeviceType() == DeviceType::Metal || device->getDeviceType() == DeviceType::Metal4) &&
         (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipCount != 1)
         return false;
     // Metal does not support multisampled textures with 1 sample
-    if (device->getDeviceType() == DeviceType::Metal && isMultisamplingType(desc.type) && desc.sampleCount == 1)
+    if ((device->getDeviceType() == DeviceType::Metal || device->getDeviceType() == DeviceType::Metal4) && isMultisamplingType(desc.type) && desc.sampleCount == 1)
         return false;
     // CUDA does not support multisample textures.
     if (device->getDeviceType() == DeviceType::CUDA && isMultisamplingType(desc.type))
@@ -1207,7 +1207,7 @@ void TextureTestOptions::filterFormat(int state, TextureTestVariant variant)
         const FormatInfo& info = getFormatInfo(format);
 
         // Metal doesn't support writing into depth textures.
-        if (m_device->getDeviceType() == DeviceType::Metal && (info.hasDepth || info.hasStencil))
+        if ((m_device->getDeviceType() == DeviceType::Metal || m_device->getDeviceType() == DeviceType::Metal4) && (info.hasDepth || info.hasStencil))
             return;
 
         // WebGPU doesn't support writing into depth textures.

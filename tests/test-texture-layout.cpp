@@ -92,7 +92,7 @@ GPU_TEST_CASE("texture-layout-1d-nomip-alignment", D3D12 | WGPU)
 }
 
 // Metal doesn't support 1D textures with mip maps.
-GPU_TEST_CASE("texture-layout-1d-mips", ALL_TEX & ~WGPU & ~Metal)
+GPU_TEST_CASE("texture-layout-1d-mips", ALL_TEX & ~WGPU & ~Metal & ~Metal4)
 {
 
     TextureDesc desc;
@@ -172,7 +172,7 @@ GPU_TEST_CASE("texture-layout-1darray-nomip", ALL_TEX & ~CUDA & ~WGPU)
 }
 
 // Metal doesn't support 1D textures with mip maps.
-GPU_TEST_CASE("texture-layout-1darray-mips", ALL_TEX & ~CUDA & ~WGPU & ~Metal)
+GPU_TEST_CASE("texture-layout-1darray-mips", ALL_TEX & ~CUDA & ~WGPU & ~Metal & ~Metal4)
 {
 
     TextureDesc desc;

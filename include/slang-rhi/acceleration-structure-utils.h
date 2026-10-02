@@ -12,6 +12,7 @@ inline AccelerationStructureInstanceDescType getAccelerationStructureInstanceDes
         return AccelerationStructureInstanceDescType::D3D12;
     case DeviceType::Vulkan:
         return AccelerationStructureInstanceDescType::Vulkan;
+    case DeviceType::Metal4:
     case DeviceType::Metal:
         return AccelerationStructureInstanceDescType::Metal;
     case DeviceType::CUDA:

@@ -45,6 +45,7 @@ GPU_TEST_CASE("native-handle-buffer", D3D12 | Vulkan | Metal | CUDA)
         CHECK_NE(handle.value, 0);
         break;
     }
+    case DeviceType::Metal4:
     case DeviceType::Metal:
     {
         CHECK_EQ(handle.type, NativeHandleType::MTLBuffer);
@@ -100,6 +101,7 @@ GPU_TEST_CASE("native-handle-texture", D3D12 | Vulkan | Metal | CUDA)
         CHECK_NE(handle.value, 0);
         break;
     }
+    case DeviceType::Metal4:
     case DeviceType::Metal:
     {
         CHECK_EQ(handle.type, NativeHandleType::MTLTexture);
@@ -140,6 +142,12 @@ GPU_TEST_CASE("native-handle-command-queue", D3D12 | Vulkan | Metal | CUDA)
     case DeviceType::Vulkan:
     {
         CHECK_EQ(handle.type, NativeHandleType::VkQueue);
+        CHECK_NE(handle.value, 0);
+        break;
+    }
+    case DeviceType::Metal4:
+    {
+        CHECK_EQ(handle.type, NativeHandleType::MTL4CommandQueue);
         CHECK_NE(handle.value, 0);
         break;
     }
@@ -185,6 +193,12 @@ GPU_TEST_CASE("native-handle-command-buffer", D3D12 | Vulkan | Metal)
     case DeviceType::Vulkan:
     {
         CHECK_EQ(handle.type, NativeHandleType::VkCommandBuffer);
+        CHECK_NE(handle.value, 0);
+        break;
+    }
+    case DeviceType::Metal4:
+    {
+        CHECK_EQ(handle.type, NativeHandleType::MTL4CommandBuffer);
         CHECK_NE(handle.value, 0);
         break;
     }

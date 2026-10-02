@@ -178,6 +178,17 @@ cmake_dependent_option(SLANG_RHI_ENABLE_AGILITY_SDK "Enable Agility SDK" ON "SLA
 cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI support" ON "SLANG_RHI_HAS_NVAPI" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_VULKAN "Enable Vulkan backend" ON "SLANG_RHI_HAS_VULKAN" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_RHI_HAS_METAL" OFF)
+set(SLANG_RHI_HAS_METAL4 OFF)
+if(SLANG_RHI_ENABLE_METAL)
+    include(CheckCXXSourceCompiles)
+    check_cxx_source_compiles("#include <AvailabilityMacros.h>
+#if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || MAC_OS_X_VERSION_MAX_ALLOWED < 260000
+#error Metal 4 requires the macOS 26 SDK
+#endif
+int main() { return 0; }" SLANG_RHI_METAL4_SDK_AVAILABLE)
+    set(SLANG_RHI_HAS_METAL4 ${SLANG_RHI_METAL4_SDK_AVAILABLE})
+endif()
+cmake_dependent_option(SLANG_RHI_ENABLE_METAL4 "Enable additional Metal 4 backend (SDK 26+)" ON "SLANG_RHI_ENABLE_METAL;SLANG_RHI_HAS_METAL4" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_OPTIX "Enable OptiX support" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
@@ -932,6 +943,30 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-utils.cpp
     )
     target_link_libraries(slang-rhi PRIVATE slang-rhi-vulkan-headers)
+endif()
+
+if(SLANG_RHI_ENABLE_METAL4)
+    target_sources(slang-rhi PRIVATE
+        src/metal4/metal4-acceleration-structure.cpp
+        src/metal4/metal4-backend.cpp
+        src/metal4/metal4-buffer.cpp
+        src/metal4/metal4-clear-engine.cpp
+        src/metal4/metal4-command.cpp
+        src/metal4/metal4-device.cpp
+        src/metal4/metal4-fence.cpp
+        src/metal4/metal4-input-layout.cpp
+        src/metal4/metal4-pipeline.cpp
+        src/metal4/metal4-query.cpp
+        src/metal4/metal4-sampler.cpp
+        src/metal4/metal4-shader-object-layout.cpp
+        src/metal4/metal4-shader-object.cpp
+        src/metal4/metal4-shader-program.cpp
+        src/metal4/metal4-shader-table.cpp
+        src/metal4/metal4-surface.cpp
+        src/metal4/metal4-texture.cpp
+        src/metal4/metal4-utils.cpp
+        src/metal4/metal4-bridge.mm
+    )
 endif()
 
 if(SLANG_RHI_ENABLE_METAL)

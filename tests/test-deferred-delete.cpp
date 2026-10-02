@@ -34,6 +34,7 @@ GPU_TEST_CASE("deferred-delete", ALL)
         deferredSampler = true;
         deferredAccel = true;
         break;
+    case ::DeviceType::Metal4:
     case ::DeviceType::Metal:
         // Metal deferred deletes all resources.
         deferredBuffer = true;

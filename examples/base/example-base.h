@@ -1,3 +1,4 @@
+#include <cstdlib>
 #pragma once
 
 #include "utils.h"
@@ -348,6 +349,7 @@ static int main(int argc, const char** argv)
         DeviceType::D3D12,
         DeviceType::Vulkan,
         DeviceType::Metal,
+        DeviceType::Metal4,
         DeviceType::CPU,
         DeviceType::CUDA,
         // Exclude for now as WGPU backend is not fully functional
@@ -356,9 +358,16 @@ static int main(int argc, const char** argv)
 
     std::vector<ExampleBase*>& examples = getExamples();
 
+    const char* selectedDevice=nullptr;
+    unsigned frameLimit=0;
+    for(int i=1;i<argc;++i) {
+        if(std::strncmp(argv[i],"--device=",9)==0) selectedDevice=argv[i]+9;
+        if(std::strncmp(argv[i],"--frames=",9)==0) frameLimit=unsigned(std::strtoul(argv[i]+9,nullptr,10));
+    }
     // Create an example for each supported device type
     for (DeviceType deviceType : deviceTypes)
     {
+        if (selectedDevice && std::strcmp(selectedDevice,rhi::getRHI()->getDeviceTypeName(deviceType))!=0) continue;
         if (rhi::getRHI()->isDeviceTypeSupported(deviceType))
         {
             Example* example = new Example();
@@ -381,7 +390,8 @@ static int main(int argc, const char** argv)
 
     if (examples.size() > 0)
     {
-        while (true)
+        unsigned frames=0;
+        while (!frameLimit || frames++<frameLimit)
         {
             bool shouldClose = false;
             for (ExampleBase* example : examples)

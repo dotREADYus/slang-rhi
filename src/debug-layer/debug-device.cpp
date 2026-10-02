@@ -1039,7 +1039,7 @@ Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRender
         RHI_VALIDATION_ERROR("WebGPU does not support PatchList topology.");
         return SLANG_E_INVALID_ARG;
     }
-    if (ctx->deviceType == DeviceType::Metal && desc.primitiveTopology == PrimitiveTopology::PatchList)
+    if ((ctx->deviceType == DeviceType::Metal || ctx->deviceType == DeviceType::Metal4) && desc.primitiveTopology == PrimitiveTopology::PatchList)
     {
         RHI_VALIDATION_ERROR("Metal does not support PatchList topology.");
         return SLANG_E_INVALID_ARG;

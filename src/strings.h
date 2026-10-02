@@ -12,6 +12,7 @@
 #define S_DeviceType_D3D12 "D3D12"
 #define S_DeviceType_Vulkan "Vulkan"
 #define S_DeviceType_Metal "Metal"
+#define S_DeviceType_Metal4 "Metal4"
 #define S_DeviceType_CPU "CPU"
 #define S_DeviceType_CUDA "CUDA"
 #define S_DeviceType_WGPU "WGPU"

@@ -100,6 +100,7 @@ enum class DeviceType
     CPU,
     CUDA,
     WGPU,
+    Metal4,
 };
 
 // clang-format off
@@ -650,6 +651,8 @@ enum class NativeHandleType
     WGPUCommandBuffer = 0x00070008,
     WGPUTextureView = 0x00070009,
     WGPUCommandEncoder = 0x0007000a,
+    MTL4CommandQueue,
+    MTL4CommandBuffer,
 };
 
 struct NativeHandle

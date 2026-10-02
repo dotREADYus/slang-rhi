@@ -1,6 +1,7 @@
 #include "testing.h"
 
 #include <chrono>
+#include <thread>
 #include <initializer_list>
 #include <cmath>
 
@@ -617,4 +618,118 @@ GPU_TEST_CASE("cmd-query-timestamp-calibration", ALL)
 
     CHECK(timestamp >= lowerBound);
     CHECK(timestamp <= upperBound);
+}
+
+GPU_TEST_CASE("cmd-query-timestamps-in-pass", ALL)
+{
+    if (!device->hasFeature(Feature::TimestampQuery))
+        SKIP("Timestamp queries not supported");
+    auto pool = createTimestampQueryPool(device, 6);
+    auto queue = device->getQueue(QueueType::Graphics);
+    TextureDesc textureDesc{};
+    textureDesc.size = {16, 16, 1};
+    textureDesc.format = Format::RGBA8Unorm;
+    textureDesc.usage = TextureUsage::RenderTarget;
+    auto texture = device->createTexture(textureDesc);
+    auto view = device->createTextureView(texture, {});
+    REQUIRE(view);
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadRenderProgramFromSource(
+        device,
+        R"(
+        [shader("vertex")] float4 vertexMain(uint id : SV_VertexID) : SV_Position {
+            float2 p = id == 0 ? float2(-1,-1) : id == 1 ? float2(3,-1) : float2(-1,3);
+            return float4(p,0,1);
+        }
+        [shader("fragment")] float4 fragmentMain() : SV_Target { return float4(1,0,0,1); }
+    )",
+        "vertexMain",
+        "fragmentMain",
+        program.writeRef()
+    ));
+    ColorTargetDesc target{};
+    target.format = textureDesc.format;
+    RenderPipelineDesc pipelineDesc{};
+    pipelineDesc.program = program;
+    pipelineDesc.targets = &target;
+    pipelineDesc.targetCount = 1;
+    pipelineDesc.depthStencil.depthTestEnable = false;
+    pipelineDesc.depthStencil.depthWriteEnable = false;
+    auto pipeline = device->createRenderPipeline(pipelineDesc);
+    REQUIRE(pipeline);
+    for (unsigned iteration = 0; iteration < 16; ++iteration)
+    {
+        REQUIRE_CALL(pool->reset());
+        auto encoder = queue->createCommandEncoder();
+        encoder->writeTimestamp(pool, 0);
+        RenderPassColorAttachment color{};
+        color.view = view;
+        color.loadOp = LoadOp::Clear;
+        RenderPassDesc passDesc{};
+        passDesc.colorAttachments = &color;
+        passDesc.colorAttachmentCount = 1;
+        auto render = encoder->beginRenderPass(passDesc);
+        render->writeTimestamp(pool, 1);
+        render->bindPipeline(pipeline);
+        RenderState state{};
+        state.viewports[0] = Viewport::fromSize(16, 16);
+        state.viewportCount = 1;
+        state.scissorRects[0] = ScissorRect::fromSize(16, 16);
+        state.scissorRectCount = 1;
+        render->setRenderState(state);
+        DrawArguments draw{};
+        draw.vertexCount = 3;
+        for (unsigned i = 0; i < 128; ++i)
+            render->draw(draw);
+        render->writeTimestamp(pool, 2);
+        render->end();
+        auto compute = encoder->beginComputePass();
+        compute->writeTimestamp(pool, 3);
+        compute->writeTimestamp(pool, 4);
+        compute->end();
+        encoder->writeTimestamp(pool, 5);
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        uint64_t values[6]{};
+        REQUIRE_CALL(pool->getResult(0, 6, values));
+        for (auto value : values)
+            CHECK(value > 0);
+        CHECK(values[2] >= values[1]);
+        CHECK(values[4] >= values[3]);
+        CHECK(values[5] >= values[0]);
+    }
+}
+
+GPU_TEST_CASE("cmd-query-classic-timestamp-unavailable", ALL)
+{
+    if (device->getInfo().deviceType != DeviceType::Metal)
+        SKIP("Classic Metal capability regression");
+    CHECK_FALSE(device->hasFeature(Feature::TimestampQuery));
+    QueryPoolDesc desc{};
+    desc.type = QueryType::Timestamp;
+    desc.count = 4;
+    ComPtr<IQueryPool> pool;
+    CHECK(device->createQueryPool(desc, pool.writeRef()) == SLANG_E_NOT_AVAILABLE);
+    CHECK(pool == nullptr);
+}
+
+GPU_TEST_CASE("cmd-query-metal4-timestamp-units", ALL)
+{
+    if (device->getInfo().deviceType != DeviceType::Metal4)
+        SKIP("Metal4 counter heap frequency regression");
+    auto pool = createTimestampQueryPool(device, 2);
+    auto queue = device->getQueue(QueueType::Graphics);
+    const auto begin = std::chrono::steady_clock::now();
+    REQUIRE_CALL(queue->submit(createTimestampCommandBuffer(queue, pool, {0})));
+    REQUIRE_CALL(queue->waitOnHost());
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    REQUIRE_CALL(queue->submit(createTimestampCommandBuffer(queue, pool, {1})));
+    REQUIRE_CALL(queue->waitOnHost());
+    const double cpu = std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
+    uint64_t values[2]{};
+    REQUIRE_CALL(pool->getResult(0, 2, values));
+    REQUIRE(values[1] >= values[0]);
+    const double gpu = double(values[1] - values[0]) / device->getInfo().timestampFrequency;
+    CHECK(gpu >= cpu * 0.75);
+    CHECK(gpu <= cpu * 1.25 + 0.001);
 }

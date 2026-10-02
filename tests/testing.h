@@ -17,7 +17,7 @@
 
 namespace rhi::testing {
 
-static constexpr size_t kDeviceTypeCount = 7;
+static constexpr size_t kDeviceTypeCount = size_t(rhi::DeviceType::Metal4);
 
 struct Options
 {
@@ -403,6 +403,7 @@ static constexpr DeviceType kPlatformDeviceTypes[] = {
 #elif SLANG_APPLE_FAMILY
     rhi::DeviceType::Vulkan,
     rhi::DeviceType::Metal,
+    rhi::DeviceType::Metal4,
     rhi::DeviceType::CPU,
     rhi::DeviceType::CUDA,
     rhi::DeviceType::WGPU,
@@ -414,6 +415,7 @@ static constexpr DeviceType kDeviceTypes[] = {
     rhi::DeviceType::D3D12,
     rhi::DeviceType::Vulkan,
     rhi::DeviceType::Metal,
+    rhi::DeviceType::Metal4,
     rhi::DeviceType::CPU,
     rhi::DeviceType::CUDA,
     rhi::DeviceType::WGPU,
@@ -442,10 +444,11 @@ enum GpuTestFlags
     D3D12 = (1 << (int)DeviceType::D3D12),
     Vulkan = (1 << (int)DeviceType::Vulkan),
     Metal = (1 << (int)DeviceType::Metal),
+    Metal4 = (1 << (int)DeviceType::Metal4),
     CPU = (1 << (int)DeviceType::CPU),
     CUDA = (1 << (int)DeviceType::CUDA),
     WGPU = (1 << (int)DeviceType::WGPU),
-    ALL = D3D11 | D3D12 | Vulkan | Metal | CPU | CUDA | WGPU,
+    ALL = D3D11 | D3D12 | Vulkan | Metal | Metal4 | CPU | CUDA | WGPU,
 
     // Additional flags
     DontCreateDevice = (1 << 10), // Do not create a device (device argument is nullptr)

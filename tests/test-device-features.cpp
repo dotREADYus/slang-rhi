@@ -111,3 +111,20 @@ TEST_CASE("cooperative-matrix-2-subfeature-names")
     );
     CHECK(std::string(rhi->getFeatureName(Feature::CooperativeMatrixBlockLoads)) == "cooperative-matrix-block-loads");
 }
+
+TEST_CASE("metal4-explicit-selection-contract")
+{
+    static_assert(int(DeviceType::Metal)==4 && int(DeviceType::WGPU)==7 && int(DeviceType::Metal4)==8);
+    auto rhi=getRHI();
+    DeviceDesc desc={}; desc.deviceType=DeviceType::Metal4;
+    ComPtr<IDevice> device;
+    Result result=rhi->createDevice(desc,device.writeRef());
+    if (!rhi->getAdapter(DeviceType::Metal4,0)) {
+        CHECK(result==SLANG_E_NOT_AVAILABLE);
+        CHECK(!device);
+    } else {
+        REQUIRE_CALL(result);
+        CHECK(device->getDeviceType()==DeviceType::Metal4);
+        CHECK(std::strcmp(device->getInfo().apiName,"Metal 4")==0);
+    }
+}

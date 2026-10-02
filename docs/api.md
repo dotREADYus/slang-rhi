@@ -375,3 +375,32 @@ NOT_AVAILABLE even without the API validation layer and before deferred compilat
 Existing enum values and RenderState layout are unchanged. Mixed-factor GPU tests
 check nonzero destination colors, both inverses and dynamic changes on one pipeline.
 D3D12 reference: https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ne-d3d12-d3d12_blend
+
+## Additional Metal 4 device
+
+`DeviceType::Metal4` is an explicit additional backend, gated by
+`SLANG_RHI_ENABLE_METAL4`, the macOS26 SDK, runtime availability and Metal4 GPU
+family support. `DeviceType::Metal` retains the classic backend. Device enums are
+appended; existing device values are unchanged. Command queue/buffer native handles
+are tagged `MTL4CommandQueue` / `MTL4CommandBuffer`; device/buffer/texture/event
+handles keep their existing Metal types.
+
+See [Metal4 implementation and validation](../src/metal4/README.md) for the supported
+paths, lifetime/synchronization contracts and current exclusions. The existing
+Metal columns above describe the classic backend; they do not imply that every
+optional API is available on Metal4.
+
+## Experimental Metal4 timestamp queries
+
+The separate `DeviceType::Metal4` backend advertises `Feature::TimestampQuery`
+when timestamp counter heaps are available. Command and pass encoders support
+`writeTimestamp`, host results, query readiness/reset and GPU `resolveQuery`.
+Timestamp units are Mach ticks; `DeviceInfo::timestampFrequency` derives from
+`mach_timebase_info` (24MHz on the measured Apple M2 Pro).
+Readback is resolved on the GPU with fences and consumed after queue retirement.
+CPU heap invalidation during reset rejects an outstanding submitted writer.
+Timestamp calibration is not advertised. Precise samples can affect performance
+and subsequent work may overlap a sample; durations are not exclusive GPU costs.
+The classic `DeviceType::Metal` backend remains separate and does not advertise
+`TimestampQuery`; its timestamp recording implementation remains unavailable and pool creation
+returns `NOT_AVAILABLE` rather than creating an unwritten counter pool.

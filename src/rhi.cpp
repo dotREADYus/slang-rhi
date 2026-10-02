@@ -225,6 +225,8 @@ const char* RHI::getDeviceTypeName(DeviceType type)
         return "Vulkan";
     case DeviceType::Metal:
         return "Metal";
+    case DeviceType::Metal4:
+        return "Metal4";
     case DeviceType::CPU:
         return "CPU";
     case DeviceType::CUDA:
@@ -247,6 +249,8 @@ bool RHI::isDeviceTypeSupported(DeviceType type)
         return SLANG_RHI_ENABLE_VULKAN;
     case DeviceType::Metal:
         return SLANG_RHI_ENABLE_METAL;
+    case DeviceType::Metal4:
+        return SLANG_RHI_ENABLE_METAL4;
     case DeviceType::CPU:
         return SLANG_RHI_ENABLE_CPU;
     case DeviceType::CUDA:
@@ -333,7 +337,10 @@ Result RHI::createDeviceImpl(const DeviceDesc& desc, IDevice** outDevice)
 
     Backend* backend = getBackend(desc.deviceType);
     if (!backend)
+    {
+        if(desc.deviceType==DeviceType::Metal4) { *outDevice=nullptr; return SLANG_E_NOT_AVAILABLE; }
         return SLANG_FAIL;
+    }
 
     return backend->createDevice(desc, outDevice);
 }
@@ -432,6 +439,11 @@ Backend* RHI::getBackend(DeviceType type)
 #if SLANG_RHI_ENABLE_VULKAN
     case DeviceType::Vulkan:
         result = createVKBackend(backend.writeRef());
+        break;
+#endif
+#if SLANG_RHI_ENABLE_METAL4
+    case DeviceType::Metal4:
+        result = createMetal4Backend(backend.writeRef());
         break;
 #endif
 #if SLANG_RHI_ENABLE_METAL
