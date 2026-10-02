@@ -71,6 +71,7 @@ struct Bindings
     uint64_t textures[128]{};
     uint64_t samplers[16]{};
     unsigned bufferCount=0, textureCount=0, samplerCount=0;
+    unsigned tableBufferCount = 0, tableTextureCount = 0, tableSamplerCount = 0;
     bool dirty = true;
     void* table = nullptr;
 };

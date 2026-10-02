@@ -158,16 +158,33 @@ void* CommandBuffer::snapshot(Bindings& b)
 {
     if (!b.dirty) return b.table;
     cpu_profile::Scope timer(5);
-    auto td=[[[MTL4ArgumentTableDescriptor alloc] init] autorelease];
-    td.maxBufferBindCount=b.bufferCount; td.maxTextureBindCount=b.textureCount; td.maxSamplerStateBindCount=b.samplerCount;
-    NSError* error=nil;
-    auto t=[OB(MTLDevice,m_queue->m_device) newArgumentTableWithDescriptor:td error:&error];
-    SLANG_RHI_ASSERT(t != nil);
-    if (!t) return nullptr;
+    // Metal snapshots table contents at draw/dispatch encoding, not GPU execution.
+    // Reuse the encoder's table while retaining all referenced resources through
+    // command-buffer completion. Grow only when a later pipeline needs more slots.
+    auto t = OB(MTL4ArgumentTable, b.table);
+    if (!t || b.bufferCount > b.tableBufferCount || b.textureCount > b.tableTextureCount ||
+        b.samplerCount > b.tableSamplerCount)
+    {
+        cpu_profile::Scope allocationTimer(6);
+        auto td = [[[MTL4ArgumentTableDescriptor alloc] init] autorelease];
+        td.maxBufferBindCount = b.bufferCount;
+        td.maxTextureBindCount = b.textureCount;
+        td.maxSamplerStateBindCount = b.samplerCount;
+        NSError* error = nil;
+        t = [OB(MTLDevice, m_queue->m_device) newArgumentTableWithDescriptor:td error:&error];
+        SLANG_RHI_ASSERT(t != nil);
+        if (!t)
+            return nullptr;
+        m_objects.push_back(t);
+        b.table = t;
+        b.tableBufferCount = b.bufferCount;
+        b.tableTextureCount = b.textureCount;
+        b.tableSamplerCount = b.samplerCount;
+    }
     for (NSUInteger i=0;i<b.bufferCount;++i) [t setAddress:b.buffers[i] atIndex:i];
     for (NSUInteger i=0;i<b.textureCount;++i) [t setTexture:MTLResourceID{b.textures[i]} atIndex:i];
     for (NSUInteger i=0;i<b.samplerCount;++i) [t setSamplerState:MTLResourceID{b.samplers[i]} atIndex:i];
-    m_objects.push_back(t); b.table=t; b.dirty=false;
+    b.dirty = false;
     return t;
 }
 RenderCommandEncoder* CommandBuffer::renderCommandEncoder(MTL::RenderPassDescriptor* input)

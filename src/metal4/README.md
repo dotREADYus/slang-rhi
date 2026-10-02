@@ -90,3 +90,12 @@ both waits and completion signals. Retained event references follow command-buff
 retirement. Cross-encoder timestamp samples on empty compute/blit intervals can
 occasionally reverse by a few microseconds; CPU throughput controls should disable
 sampling and diagnostic consumers must reject invalid durations.
+
+Metal4 argument tables are encoder-owned and reused between draws/dispatches.
+Metal snapshots their resource entries when each command is encoded; uniform
+storage itself still uses immutable command-buffer-owned slices. Tables grow
+when later bindings require more slots, and old tables/resources remain retained
+through completion. `argument_table_ms` now measures updates including occasional
+growth; `argument_table_alloc_ms` and its call count isolate actual table allocation.
+The draw/dispatch snapshot regressions mutate textures, samplers, output buffers
+and uniforms across commands and command buffers.

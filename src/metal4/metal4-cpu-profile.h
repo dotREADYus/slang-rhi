@@ -12,8 +12,8 @@ inline bool enabled()
     static const bool value = std::getenv("SLANG_RHI_CPU_DETAIL") != nullptr;
     return value;
 }
-inline thread_local double milliseconds[6]{};
-inline thread_local unsigned long long calls[6]{};
+inline thread_local double milliseconds[7]{};
+inline thread_local unsigned long long calls[7]{};
 struct Scope
 {
     unsigned phase;
@@ -45,8 +45,9 @@ inline void emit()
             std::fprintf(
                 f,
                 "wall_s,track_ms,layout_ms,build_binding_ms,resolve_pipeline_ms,record_native_ms,argument_table_ms,"
+                "argument_table_alloc_ms,"
                 "track_calls,layout_calls,build_binding_calls,resolve_pipeline_calls,record_native_calls,argument_"
-                "table_calls\n"
+                "table_calls,argument_table_alloc_calls\n"
             );
         return f;
     }();
