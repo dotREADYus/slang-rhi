@@ -14,6 +14,9 @@ struct BindingDataBuilder
     BindingCache* m_bindingCache;
     BindingDataImpl* m_bindingData;
 
+    Result setBuffer(uint32_t index, MTL::Buffer* buffer, NS::UInteger offset = 0);
+    Result setTexture(uint32_t index, MTL::Texture* texture);
+
     /// Bind this object as a root shader object
     Result bindAsRoot(
         RootShaderObject* shaderObject,

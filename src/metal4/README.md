@@ -99,3 +99,10 @@ through completion. `argument_table_ms` now measures updates including occasiona
 growth; `argument_table_alloc_ms` and its call count isolate actual table allocation.
 The draw/dispatch snapshot regressions mutate textures, samplers, output buffers
 and uniforms across commands and command buffers.
+
+Metal4 binding snapshots allocate buffer/offset and texture arrays from reflected
+layout counts instead of reserving 256 slots for every draw. Sparse bindings grow
+the arrays in the command-buffer arena, retaining zeroed holes and all populated
+entries. The existing 256-slot limit is unchanged. Snapshot and uniform data remain
+independent for each recorded draw. `SLANG_RHI_COMPACT_BINDINGS=0` restores fixed
+256-slot allocation for same-binary performance controls.

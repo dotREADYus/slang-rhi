@@ -5,14 +5,27 @@
 #include "metal4-texture.h"
 #include "metal4-sampler.h"
 #include <slang.h>
+#include <cstdlib>
+#include <cstring>
 
 namespace rhi::metal4 {
 
-inline Result setBuffer(BindingDataImpl* bindingData, uint32_t index, MTL::Buffer* buffer, NS::UInteger offset = 0)
+Result BindingDataBuilder::setBuffer(uint32_t index, MTL::Buffer* buffer, NS::UInteger offset)
 {
+    auto bindingData = m_bindingData;
+    if (index >= 256) return SLANG_FAIL;
     if (index >= bindingData->bufferCapacity)
     {
-        return SLANG_FAIL;
+        uint32_t capacity = min(256u, max(index + 1, bindingData->bufferCapacity * 2));
+        auto buffers = m_allocator->allocate<MTL::Buffer*>(capacity);
+        auto offsets = m_allocator->allocate<NS::UInteger>(capacity);
+        ::memset(buffers, 0, sizeof(MTL::Buffer*) * capacity);
+        ::memset(offsets, 0, sizeof(NS::UInteger) * capacity);
+        ::memcpy(buffers, bindingData->buffers, sizeof(MTL::Buffer*) * bindingData->bufferCount);
+        ::memcpy(offsets, bindingData->bufferOffsets, sizeof(NS::UInteger) * bindingData->bufferCount);
+        bindingData->buffers = buffers;
+        bindingData->bufferOffsets = offsets;
+        bindingData->bufferCapacity = capacity;
     }
     bindingData->bufferCount = max(bindingData->bufferCount, index + 1);
     bindingData->buffers[index] = buffer;
@@ -20,11 +33,18 @@ inline Result setBuffer(BindingDataImpl* bindingData, uint32_t index, MTL::Buffe
     return SLANG_OK;
 }
 
-inline Result setTexture(BindingDataImpl* bindingData, uint32_t index, MTL::Texture* texture)
+Result BindingDataBuilder::setTexture(uint32_t index, MTL::Texture* texture)
 {
+    auto bindingData = m_bindingData;
+    if (index >= 256) return SLANG_FAIL;
     if (index >= bindingData->textureCapacity)
     {
-        return SLANG_FAIL;
+        uint32_t capacity = min(256u, max(index + 1, bindingData->textureCapacity * 2));
+        auto textures = m_allocator->allocate<MTL::Texture*>(capacity);
+        ::memset(textures, 0, sizeof(MTL::Texture*) * capacity);
+        ::memcpy(textures, bindingData->textures, sizeof(MTL::Texture*) * bindingData->textureCount);
+        bindingData->textures = textures;
+        bindingData->textureCapacity = capacity;
     }
     bindingData->textureCount = max(bindingData->textureCount, index + 1);
     bindingData->textures[index] = texture;
@@ -63,10 +83,14 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl* bindingData = m_allocator->allocate<BindingDataImpl>();
     m_bindingData = bindingData;
 
-    // TODO(shaderobject): we should count number of buffers/textures in the layout and allocate appropriately
-    // then we could switch to asserts instead of error checks when writing binding data
-    m_bindingData->bufferCapacity = 256;
-    m_bindingData->textureCapacity = 256;
+    // Keep independent per-draw snapshots, but avoid clearing 256 slots for
+    // small layouts. Sparse register indices can grow the arrays on demand.
+    static const bool compact = [] {
+        const char* value = std::getenv("SLANG_RHI_COMPACT_BINDINGS");
+        return !value || std::strcmp(value, "0") != 0;
+    }();
+    m_bindingData->bufferCapacity = compact ? min(256u, max(1u, specializedLayout->getTotalBufferCount())) : 256;
+    m_bindingData->textureCapacity = compact ? min(256u, max(1u, specializedLayout->getTotalTextureCount())) : 256;
     m_bindingData->bufferCount = 0;
     m_bindingData->buffers = m_allocator->allocate<MTL::Buffer*>(m_bindingData->bufferCapacity);
     ::memset(m_bindingData->buffers, 0, sizeof(MTL::Buffer*) * m_bindingData->bufferCapacity);
@@ -203,7 +227,7 @@ Result BindingDataBuilder::bindAsParameterBlock(
 
     if (argumentBuffer)
     {
-        SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, inOffset.buffer, argumentBuffer->m_buffer.get()));
+        SLANG_RETURN_ON_FAIL(setBuffer(inOffset.buffer, argumentBuffer->m_buffer.get()));
     }
 
     return SLANG_OK;
@@ -239,7 +263,7 @@ Result BindingDataBuilder::bindAsValue(
                 if (textureView)
                 {
                     uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.texture + i;
-                    SLANG_RETURN_ON_FAIL(setTexture(m_bindingData, registerIndex, textureView->m_textureView.get()));
+                    SLANG_RETURN_ON_FAIL(setTexture(registerIndex, textureView->m_textureView.get()));
                 }
             }
             break;
@@ -268,7 +292,7 @@ Result BindingDataBuilder::bindAsValue(
                 {
                     uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.buffer + i;
                     SLANG_RETURN_ON_FAIL(
-                        setBuffer(m_bindingData, registerIndex, buffer->m_buffer.get(), slot.bufferRange.offset)
+                        setBuffer(registerIndex, buffer->m_buffer.get(), slot.bufferRange.offset)
                     );
                 }
             }
@@ -453,7 +477,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     // If we did indeed need/create a buffer, then we must bind it
     // into root binding state.
     //
-    SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, ioOffset.buffer, bufferImpl->m_buffer.get(),sliceOffset));
+    SLANG_RETURN_ON_FAIL(setBuffer(ioOffset.buffer, bufferImpl->m_buffer.get(),sliceOffset));
     ioOffset.buffer++;
 
     // Page ownership was transferred to the binding cache when allocated.
