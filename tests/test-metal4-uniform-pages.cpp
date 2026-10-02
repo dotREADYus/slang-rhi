@@ -33,13 +33,24 @@ GPU_TEST_CASE("metal4-uniform-page-snapshots", ALL)
         // Mutate one root across enough dispatches to cross several upload pages.
         // All recorded snapshots must survive until execution, including the tail
         // of each ordinary-data block and the next command buffer's retirement.
+        auto indexCursor = cursor["parameters"]["index"];
+        auto valueCursor = cursor["parameters"]["value"];
+        auto tailCursor = cursor["parameters"]["padding"][253];
+        void *indexData = nullptr, *valueData = nullptr, *tailData = nullptr;
+        REQUIRE_CALL(indexCursor.m_baseObject->reserveData(indexCursor.m_offset, sizeof(uint32_t), &indexData));
+        REQUIRE_CALL(valueCursor.m_baseObject->reserveData(valueCursor.m_offset, sizeof(uint32_t), &valueData));
+        REQUIRE_CALL(tailCursor.m_baseObject->reserveData(tailCursor.m_offset, sizeof(float), &tailData));
+        // Retained pointers mutate bytes without incrementing object versions.
+        // Duplicate dispatches exercise unchanged-slice reuse; subsequent writes
+        // must allocate a new immutable slice even with the same version.
         for (uint32_t index = 0; index < 512; ++index)
         {
             const uint32_t value = index + round * 512;
             const float tail = float(index % 13);
-            REQUIRE_CALL(cursor["parameters"]["index"].setData(index));
-            REQUIRE_CALL(cursor["parameters"]["value"].setData(value));
-            REQUIRE_CALL(cursor["parameters"]["padding"][253].setData(tail));
+            std::memcpy(indexData, &index, sizeof(index));
+            std::memcpy(valueData, &value, sizeof(value));
+            std::memcpy(tailData, &tail, sizeof(tail));
+            pass->dispatchCompute(1, 1, 1);
             pass->dispatchCompute(1, 1, 1);
             expected.push_back(value + uint32_t(tail));
         }
