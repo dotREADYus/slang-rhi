@@ -418,14 +418,28 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     if (size == 0)
         return SLANG_OK;
 
-    ComPtr<IBuffer> buffer;
-    BufferDesc bufferDesc = {};
-    bufferDesc.size = size;
-    bufferDesc.usage = BufferUsage::ConstantBuffer | BufferUsage::CopyDestination;
-    bufferDesc.defaultState = ResourceState::ConstantBuffer;
-    bufferDesc.memoryType = MemoryType::Upload;
-    SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
-    auto bufferImpl = checked_cast<BufferImpl*>(buffer.get());
+    // Native buffer allocation on every draw dominates CPU binding preparation.
+    // Allocate upload pages per command buffer, with 256-byte aligned immutable
+    // slices. Ownership follows the binding cache's existing completion lifetime.
+    const uint64_t offset=(m_bindingCache->ordinaryOffset+255)&~uint64_t(255);
+    uint64_t sliceOffset = offset;
+    if (!m_bindingCache->ordinaryPage || offset + size > m_bindingCache->ordinaryCapacity)
+    {
+        ComPtr<IBuffer> buffer;
+        BufferDesc desc{};
+        desc.size = max<uint64_t>(65536, size);
+        desc.usage = BufferUsage::ConstantBuffer | BufferUsage::CopyDestination;
+        desc.defaultState = ResourceState::ConstantBuffer;
+        desc.memoryType = MemoryType::Upload;
+        SLANG_RETURN_ON_FAIL(m_device->createBuffer(desc, nullptr, buffer.writeRef()));
+        auto page = checked_cast<BufferImpl*>(buffer.get());
+        m_bindingCache->buffers.push_back(page);
+        m_bindingCache->ordinaryPage = page;
+        m_bindingCache->ordinaryCapacity = desc.size;
+        sliceOffset = 0;
+    }
+    auto bufferImpl = m_bindingCache->ordinaryPage;
+    m_bindingCache->ordinaryOffset = sliceOffset + size;
 
     // Once the buffer is allocated, we can use `_writeOrdinaryData` to fill it in.
     //
@@ -433,17 +447,16 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     // where this object contains interface/existential-type fields, so we
     // don't need or want to inline it into this call site.
     //
-    void* ordinaryData = bufferImpl->m_buffer->contents();
+    void* ordinaryData = static_cast<uint8_t*>(bufferImpl->m_buffer->contents())+sliceOffset;
     SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(ordinaryData, size, specializedLayout));
 
     // If we did indeed need/create a buffer, then we must bind it
     // into root binding state.
     //
-    SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, ioOffset.buffer, bufferImpl->m_buffer.get()));
+    SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, ioOffset.buffer, bufferImpl->m_buffer.get(),sliceOffset));
     ioOffset.buffer++;
 
-    // Pass ownership of the buffer to the binding cache.
-    m_bindingCache->buffers.push_back(bufferImpl);
+    // Page ownership was transferred to the binding cache when allocated.
 
     SLANG_RETURN_ON_FAIL(resolvePointerFieldResidency(shaderObject, specializedLayout));
 

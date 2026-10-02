@@ -153,7 +153,7 @@ public:
 public:
     std::string m_adapterName;
 
-    bool captureEnabled() const { return std::getenv("MTL_CAPTURE_ENABLED") != nullptr; }
+    bool captureEnabled() const { return std::getenv("MTL_CAPTURE_ENABLED") != nullptr && std::getenv("SLANG_RHI_MANUAL_CAPTURE") == nullptr; }
 
     NS::SharedPtr<MTL::Device> m_device;
     /// The single Metal 4 queue. Device-level uploads/readbacks use the same

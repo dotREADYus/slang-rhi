@@ -107,7 +107,12 @@ struct BindingCache
 {
     std::vector<InternalRefPtr<BufferImpl>> buffers;
 
-    void reset() { buffers.clear(); }
+    // Each command buffer owns disjoint immutable uniform slices until retirement.
+    // A later draw may mutate the host shader object without changing earlier draws.
+    BufferImpl* ordinaryPage = nullptr;
+    uint64_t ordinaryOffset = 0;
+    uint64_t ordinaryCapacity = 0;
+    void reset() { ordinaryPage=nullptr;ordinaryOffset=ordinaryCapacity=0;buffers.clear(); }
 };
 
 } // namespace rhi::metal4

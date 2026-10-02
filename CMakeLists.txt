@@ -1169,6 +1169,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-sha1.cpp
         tests/test-shader-cache.cpp
         tests/test-shader-object-from-type-layout.cpp
+        tests/test-metal4-uniform-pages.cpp
         tests/test-shader-object-large.cpp
         tests/test-shader-object-resource-tracking.cpp
         tests/test-ring-queue.cpp

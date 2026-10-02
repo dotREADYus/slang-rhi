@@ -1,3 +1,4 @@
+#include "metal4-cpu-profile.h"
 #include <mach/mach_time.h>
 #include "metal4-bridge.h"
 #include "core/common.h"
@@ -156,6 +157,7 @@ void CommandBuffer::retainResource(MTL::Resource* r)
 void* CommandBuffer::snapshot(Bindings& b)
 {
     if (!b.dirty) return b.table;
+    cpu_profile::Scope timer(5);
     auto td=[[[MTL4ArgumentTableDescriptor alloc] init] autorelease];
     td.maxBufferBindCount=b.bufferCount; td.maxTextureBindCount=b.textureCount; td.maxSamplerStateBindCount=b.samplerCount;
     NSError* error=nil;

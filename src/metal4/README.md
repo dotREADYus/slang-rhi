@@ -67,3 +67,26 @@ After timestamp support, both complete backend selections passed over41million
 assertions with no failures. Focused query/occlusion tests, repeated pool reuse,
 real shader draws, clock-scale validation and classic unsupported-query tests
 also passed. Performance diagnostics are opt-in and must use an untimed control.
+
+
+CPU diagnostics: `SLANG_RHI_CPU_DETAIL=/absolute/path/log.csv` writes aggregate
+recording-thread timings at command-buffer finish. Binding-data construction and
+resource tracking are measured before finish; native argument-table construction
+is nested inside native recording. Keep this off for throughput controls. Uniform
+ordinary data uses 256-byte-aligned, immutable slices of command-buffer-owned
+64 KiB upload pages (larger blocks receive a larger page). Pages retire with the
+binding cache after command-buffer completion; host shader-object mutation cannot
+overwrite earlier draws. Parameter-block argument buffers retain their existing
+allocation path.
+
+`MTL_CAPTURE_ENABLED=1` starts the existing device capture at creation. Set
+`SLANG_RHI_MANUAL_CAPTURE=1` when the application controls MTLCaptureManager
+itself, so initialization does not start a competing capture.
+
+
+Metal4 submit waits are attached to the first real command buffer and emitted as
+native queue waits before its commit. Empty submissions use one recording for
+both waits and completion signals. Retained event references follow command-buffer
+retirement. Cross-encoder timestamp samples on empty compute/blit intervals can
+occasionally reverse by a few microseconds; CPU throughput controls should disable
+sampling and diagnostic consumers must reject invalid durations.

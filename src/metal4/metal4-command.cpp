@@ -1,3 +1,4 @@
+#include "metal4-cpu-profile.h"
 #include "metal4-command.h"
 #include "metal4-device.h"
 #include "metal4-buffer.h"
@@ -1243,22 +1244,17 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
     AUTORELEASEPOOL
 
-    // If there are any wait fences, encode them to a new command buffer.
-    // Metal ensures that command buffers are executed in the order they are committed.
-    if (desc.waitFenceCount > 0)
+    // Metal4 waits are queue operations emitted before commit, so attach them
+    // to the first real command buffer instead of allocating an empty recording.
+    // Its retained event references survive until submission retirement.
+    if (desc.commandBufferCount > 0)
     {
-        api::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        if (!commandBuffer)
-        {
-            return SLANG_FAIL;
-        }
+        auto* first = checked_cast<CommandBufferImpl*>(desc.commandBuffers[0]);
         for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
         {
-            FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
-            commandBuffer->encodeWait(fence->m_event.get(), desc.waitFenceValues[i]);
+            auto* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
+            first->m_commandBuffer->encodeWait(fence->m_event.get(), desc.waitFenceValues[i]);
         }
-        addErrorHandler(commandBuffer);
-        commandBuffer->commit();
     }
 
     // Commit any pending residency set changes.
@@ -1317,6 +1313,11 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         {
             return SLANG_FAIL;
         }
+        for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
+        {
+            auto* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
+            commandBuffer->encodeWait(fence->m_event.get(), desc.waitFenceValues[i]);
+        }
         for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
         {
             FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
@@ -1353,13 +1354,20 @@ Result CommandEncoderImpl::init()
 
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
-    rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    {
+        cpu_profile::Scope timer(0);
+        rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    }
     BindingDataBuilder builder;
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
     ShaderObjectLayout* specializedLayout = nullptr;
-    SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
+    {
+        cpu_profile::Scope timer(1);
+        SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
+    }
+    cpu_profile::Scope timer(2);
     return builder.bindAsRoot(
         rootObject,
         checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
@@ -1378,9 +1386,13 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     {
         m_commandBuffer->m_commandBuffer->setLabel(createString(m_commandBuffer->m_desc.label).get());
     }
-    SLANG_RETURN_ON_FAIL(resolvePipelines(device));
+    {cpu_profile::Scope timer(3);SLANG_RETURN_ON_FAIL(resolvePipelines(device));}
     CommandRecorder recorder(device);
-    SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
+    {
+        cpu_profile::Scope timer(4);
+        SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
+    }
+    cpu_profile::emit();
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandList = nullptr;
     return SLANG_OK;

@@ -180,3 +180,53 @@ GPU_TEST_CASE("fence-queue-wait", ALL & ~D3D11)
     REQUIRE_CALL(device->getQueue(QueueType::Graphics)->submit(submitDesc));
     REQUIRE_CALL(device->getQueue(QueueType::Graphics)->waitOnHost());
 }
+
+GPU_TEST_CASE("metal4-submit-waits-before-work", ALL)
+{
+    if (device->getInfo().deviceType != DeviceType::Metal4)
+        SKIP("Metal4 queue wait folding regression");
+    auto queue = device->getQueue(QueueType::Graphics);
+    for (bool empty : {false, true})
+    {
+        auto gate = device->createFence({});
+        auto done = device->createFence({});
+        REQUIRE(gate);
+        REQUIRE(done);
+        uint32_t initial[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+        BufferDesc bd = {};
+        bd.size = sizeof(initial);
+        bd.usage = BufferUsage::CopyDestination | BufferUsage::CopySource;
+        auto buffer = device->createBuffer(bd, initial);
+        REQUIRE(buffer);
+        auto first = queue->createCommandEncoder();
+        auto last = queue->createCommandEncoder();
+        first->clearBuffer(buffer, {0, sizeof(initial) / 2});
+        last->clearBuffer(buffer, {sizeof(initial) / 2, sizeof(initial) / 2});
+        auto a = first->finish();
+        auto b = last->finish();
+        ICommandBuffer* commands[] = {a, b};
+        IFence* waits[] = {gate};
+        IFence* signals[] = {done};
+        const uint64_t value = 1;
+        SubmitDesc submit = {};
+        submit.commandBuffers = commands;
+        submit.commandBufferCount = empty ? 0 : 2;
+        submit.waitFences = waits;
+        submit.waitFenceValues = &value;
+        submit.waitFenceCount = 1;
+        submit.signalFences = signals;
+        submit.signalFenceValues = &value;
+        submit.signalFenceCount = 1;
+        REQUIRE_CALL(queue->submit(submit));
+        // An unresolved queue wait must hold even an empty submission's signal.
+        CHECK(device->waitForFences(1, signals, &value, true, 1000000) == SLANG_E_TIME_OUT);
+        REQUIRE_CALL(gate->setCurrentValue(value));
+        gate.setNull(); // Submission owns the native event until retirement.
+        REQUIRE_CALL(queue->waitOnHost());
+        uint64_t completed = 0;
+        REQUIRE_CALL(done->getCurrentValue(&completed));
+        CHECK(completed == value);
+        if (!empty)
+            compareComputeResult(device, buffer, makeArray<uint32_t>(0, 0, 0, 0, 0, 0, 0, 0));
+    }
+}
