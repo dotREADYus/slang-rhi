@@ -882,6 +882,10 @@ VkBlendFactor translateBlendFactor(BlendFactor blendFactor)
         return VK_BLEND_FACTOR_CONSTANT_COLOR;
     case BlendFactor::InvBlendColor:
         return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+    case BlendFactor::BlendAlpha:
+        return VK_BLEND_FACTOR_CONSTANT_ALPHA;
+    case BlendFactor::InvBlendAlpha:
+        return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA;
     case BlendFactor::SecondarySrcColor:
         return VK_BLEND_FACTOR_SRC1_COLOR;
     case BlendFactor::InvSecondarySrcColor:

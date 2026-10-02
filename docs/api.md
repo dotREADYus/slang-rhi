@@ -363,3 +363,15 @@ these values as dynamic render state and reset them at render-pass boundaries.
 The regression test changes constants with the same pipeline, verifies distinct
 per-draw results and checks default-zero state in a subsequent pass. CPU/CUDA
 backends do not support graphics rasterization.
+
+### Constant-alpha blend factors
+
+`Feature::ConstantAlphaBlend` permits `BlendAlpha` / `InvBlendAlpha` in color
+and alpha blend equations. They use `blendColor[3]` replicated to every component
+(and its inverse), independently of the RGBA `BlendColor` factors. Metal and Vulkan
+report support. D3D12 reports it only when OPTIONS13.AlphaBlendFactorSupported is
+true. D3D11, WebGPU, CPU and CUDA do not report it; pipeline creation returns
+NOT_AVAILABLE even without the API validation layer and before deferred compilation.
+Existing enum values and RenderState layout are unchanged. Mixed-factor GPU tests
+check nonzero destination colors, both inverses and dynamic changes on one pipeline.
+D3D12 reference: https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ne-d3d12-d3d12_blend

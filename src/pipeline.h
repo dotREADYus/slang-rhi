@@ -1,6 +1,7 @@
 #pragma once
 
 #include <slang-rhi.h>
+#include <initializer_list>
 
 #include "core/common.h"
 
@@ -10,6 +11,23 @@
 #include "device-child.h"
 
 namespace rhi {
+
+inline bool usesConstantAlphaBlend(const RenderPipelineDesc& desc)
+{
+    if (!desc.targets)
+        return false;
+    for (uint32_t i = 0; i < desc.targetCount; ++i)
+    {
+        const auto& target = desc.targets[i];
+        if (!target.enableBlend)
+            continue;
+        for (auto factor :
+             {target.color.srcFactor, target.color.dstFactor, target.alpha.srcFactor, target.alpha.dstFactor})
+            if (factor == BlendFactor::BlendAlpha || factor == BlendFactor::InvBlendAlpha)
+                return true;
+    }
+    return false;
+}
 
 enum class PipelineType
 {

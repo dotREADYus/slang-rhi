@@ -249,6 +249,11 @@ D3D11_BLEND translateBlendFactor(BlendFactor factor)
         return D3D11_BLEND_BLEND_FACTOR;
     case BlendFactor::InvBlendColor:
         return D3D11_BLEND_INV_BLEND_FACTOR;
+    case BlendFactor::BlendAlpha:
+    case BlendFactor::InvBlendAlpha:
+        // Device::createRenderPipeline rejects these before translation.
+        SLANG_RHI_ASSERT_FAILURE("D3D11 does not support constant-alpha blend factors");
+        return D3D11_BLEND(0);
     case BlendFactor::SecondarySrcColor:
         return D3D11_BLEND_SRC1_COLOR;
     case BlendFactor::InvSecondarySrcColor:

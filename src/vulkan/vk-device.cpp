@@ -1715,6 +1715,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Rasterization);
     addFeature(Feature::TextureViewClear);
+    addFeature(Feature::ConstantAlphaBlend);
     addFeature(Feature::OcclusionQuery);
     if (m_api.m_deviceFeatures.occlusionQueryPrecise)
         addFeature(Feature::PreciseOcclusionQuery);

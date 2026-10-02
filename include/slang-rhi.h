@@ -185,7 +185,8 @@ enum class DeviceType
     /* Occlusion query features (append to preserve existing enum values) */                      \
     x(OcclusionQuery,                           "occlusion-query"                               ) \
     x(PreciseOcclusionQuery,                    "precise-occlusion-query"                       ) \
-    x(TextureViewClear,                         "texture-view-clear"                            )
+    x(TextureViewClear,                         "texture-view-clear"                            ) \
+    x(ConstantAlphaBlend,                       "constant-alpha-blend"                          )
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
@@ -2067,6 +2068,9 @@ enum class BlendFactor
     InvSecondarySrcColor,
     SecondarySrcAlpha,
     InvSecondarySrcAlpha,
+    /// Replicate blendColor[3] to every component. Requires ConstantAlphaBlend.
+    BlendAlpha,
+    InvBlendAlpha,
 };
 
 enum class RenderTargetWriteMask : uint8_t

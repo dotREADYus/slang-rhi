@@ -649,6 +649,11 @@ WGPUBlendFactor translateBlendFactor(BlendFactor factor)
         return WGPUBlendFactor_Constant;
     case BlendFactor::InvBlendColor:
         return WGPUBlendFactor_OneMinusConstant;
+    case BlendFactor::BlendAlpha:
+    case BlendFactor::InvBlendAlpha:
+        // Device::createRenderPipeline rejects these before translation.
+        SLANG_RHI_ASSERT_FAILURE("WebGPU does not support constant-alpha blend factors");
+        return WGPUBlendFactor_Undefined;
     case BlendFactor::SecondarySrcColor:
         return WGPUBlendFactor_Src1;
     case BlendFactor::InvSecondarySrcColor:

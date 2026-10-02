@@ -241,6 +241,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);
     addFeature(Feature::TextureViewClear);
+    addFeature(Feature::ConstantAlphaBlend);
     addFeature(Feature::OcclusionQuery);
     if (m_device->supportsFamily(MTL::GPUFamilyApple3) || m_device->supportsFamily(MTL::GPUFamilyMac1))
         addFeature(Feature::PreciseOcclusionQuery);

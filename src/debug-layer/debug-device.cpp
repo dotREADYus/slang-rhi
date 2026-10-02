@@ -8,6 +8,7 @@
 
 #include "core/short_vector.h"
 #include "resource-desc-utils.h"
+#include "pipeline.h"
 
 #if SLANG_RHI_ENABLE_CUDA
 #include <slang-rhi/cuda-driver-api.h>
@@ -1045,6 +1046,12 @@ Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRender
     }
 
     RenderPipelineDesc patchedDesc = desc;
+    if (desc.targets && usesConstantAlphaBlend(desc) && !baseObject->hasFeature(Feature::ConstantAlphaBlend))
+    {
+        *outPipeline = nullptr;
+        RHI_VALIDATION_ERROR("Constant-alpha blend factors require ConstantAlphaBlend support.");
+        return SLANG_E_NOT_AVAILABLE;
+    }
     std::string label;
     if (!patchedDesc.label)
     {

@@ -292,6 +292,10 @@ D3D12_BLEND translateBlendFactor(BlendFactor factor)
         return D3D12_BLEND_BLEND_FACTOR;
     case BlendFactor::InvBlendColor:
         return D3D12_BLEND_INV_BLEND_FACTOR;
+    case BlendFactor::BlendAlpha:
+        return D3D12_BLEND_ALPHA_FACTOR;
+    case BlendFactor::InvBlendAlpha:
+        return D3D12_BLEND_INV_ALPHA_FACTOR;
     case BlendFactor::SecondarySrcColor:
         return D3D12_BLEND_SRC1_COLOR;
     case BlendFactor::InvSecondarySrcColor:

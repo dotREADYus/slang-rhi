@@ -380,6 +380,10 @@ MTL::BlendFactor translateBlendFactor(BlendFactor factor)
         return MTL::BlendFactorBlendColor;
     case BlendFactor::InvBlendColor:
         return MTL::BlendFactorOneMinusBlendColor;
+    case BlendFactor::BlendAlpha:
+        return MTL::BlendFactorBlendAlpha;
+    case BlendFactor::InvBlendAlpha:
+        return MTL::BlendFactorOneMinusBlendAlpha;
     case BlendFactor::SecondarySrcColor:
         return MTL::BlendFactorSource1Color;
     case BlendFactor::InvSecondarySrcColor:

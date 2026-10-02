@@ -833,6 +833,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::PipelineCache);
     addFeature(Feature::Rasterization);
     addFeature(Feature::TextureViewClear);
+    D3D12_FEATURE_DATA_D3D12_OPTIONS13 alphaBlendOptions = {};
+    if (SLANG_SUCCEEDED(
+            m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS13, &alphaBlendOptions, sizeof(alphaBlendOptions))
+        ) &&
+        alphaBlendOptions.AlphaBlendFactorSupported)
+        addFeature(Feature::ConstantAlphaBlend);
     addFeature(Feature::OcclusionQuery);
     addFeature(Feature::PreciseOcclusionQuery);
     addFeature(Feature::CustomBorderColor);

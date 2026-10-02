@@ -2,6 +2,7 @@
 
 #include "rhi-shared.h"
 #include "shader.h"
+#include "pipeline.h"
 #include "heap.h"
 #include "debug-layer/debug-device.h"
 
@@ -731,6 +732,11 @@ Result Device::createInputLayout(const InputLayoutDesc& desc, IInputLayout** out
 
 Result Device::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
+    if (usesConstantAlphaBlend(desc) && !hasFeature(Feature::ConstantAlphaBlend))
+    {
+        *outPipeline = nullptr;
+        return SLANG_E_NOT_AVAILABLE;
+    }
     ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
     bool createVirtual = shouldDeferPipelineCompilation(desc.compilationPolicy) || program->isSpecializable();
     if (createVirtual)
