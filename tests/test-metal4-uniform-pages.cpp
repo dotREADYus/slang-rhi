@@ -108,13 +108,13 @@ GPU_TEST_CASE("metal4-argument-table-reuse", Metal4)
     auto queue = device->getQueue(QueueType::Graphics);
     // Two command buffers also exercise retirement/recreation. Earlier commands
     // must preserve resources and sampler choices despite later root mutations.
+    auto croot = device->createRootShaderObject(compute);
+    auto rroot = device->createRootShaderObject(render);
+    REQUIRE(croot);
+    REQUIRE(rroot);
     for (uint32_t round = 0; round < 2; ++round)
     {
         auto encoder = queue->createCommandEncoder();
-        auto croot = device->createRootShaderObject(compute);
-        auto rroot = device->createRootShaderObject(render);
-        REQUIRE(croot);
-        REQUIRE(rroot);
         auto update = [&](IShaderObject* root, uint32_t i)
         {
             ShaderCursor c(root);
@@ -157,7 +157,20 @@ GPU_TEST_CASE("metal4-argument-table-reuse", Metal4)
             renderPass->draw(draw);
         }
         renderPass->end();
-        REQUIRE_CALL(queue->submit(encoder->finish()));
+        auto commands = encoder->finish();
+        REQUIRE(commands);
+        // A cached host root drops transient slots before submitted work runs.
+        // Recorded binding snapshots retain the original resources and values.
+        for (auto root : {croot.get(), rroot.get()})
+        {
+            ShaderCursor cursor(root);
+            REQUIRE_CALL(cursor["inputTexture"].setBinding(static_cast<ITextureView*>(nullptr)));
+            REQUIRE_CALL(cursor["inputSampler"].setBinding(static_cast<ISampler*>(nullptr)));
+            const float changedBias = -1000.f;
+            REQUIRE_CALL(cursor["parameters"]["bias"].setData(changedBias));
+        }
+        REQUIRE_CALL(ShaderCursor(croot)["output"].setBinding(static_cast<IBuffer*>(nullptr)));
+        REQUIRE_CALL(queue->submit(commands));
         REQUIRE_CALL(queue->waitOnHost());
         float computeValues[2][count / 2 * 4]{};
         for (uint32_t i = 0; i < 2; ++i)
