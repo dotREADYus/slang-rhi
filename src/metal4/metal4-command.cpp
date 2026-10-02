@@ -581,6 +581,7 @@ void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
 
 void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 {
+    cpu_profile::Scope stateTimer(7);
     if (!m_renderPassActive)
         return;
 
@@ -722,20 +723,30 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         encoder->setScissorRects(scissorRects, state.scissorRectCount);
     }
 
-    const RasterizerDesc& rasterizer = m_renderPipeline->m_rasterizerDesc;
-    encoder->setFrontFacingWinding(translateWinding(rasterizer.frontFace));
-    encoder->setCullMode(translateCullMode(rasterizer.cullMode));
-    encoder->setDepthClipMode(
-        rasterizer.depthClipEnable ? MTL::DepthClipModeClip : MTL::DepthClipModeClamp
-    ); // TODO correct?
-    encoder->setDepthBias(rasterizer.depthBias, rasterizer.slopeScaledDepthBias, rasterizer.depthBiasClamp);
-    encoder->setTriangleFillMode(translateTriangleFillMode(rasterizer.fillMode));
+    static const bool stateDeltas = [] {
+        const char* value = std::getenv("SLANG_RHI_RENDER_STATE_DELTAS");
+        return !value || std::strcmp(value, "0") != 0;
+    }();
+    // Rasterizer/depth-stencil state belongs to the pipeline. A new render
+    // encoder invalidates m_renderStateValid, forcing full initialization.
+    if (updatePipeline || !stateDeltas)
+    {
+        cpu_profile::Scope rasterTimer(8);
+        const RasterizerDesc& rasterizer = m_renderPipeline->m_rasterizerDesc;
+        encoder->setFrontFacingWinding(translateWinding(rasterizer.frontFace));
+        encoder->setCullMode(translateCullMode(rasterizer.cullMode));
+        encoder->setDepthClipMode(
+            rasterizer.depthClipEnable ? MTL::DepthClipModeClip : MTL::DepthClipModeClamp
+        ); // TODO correct?
+        encoder->setDepthBias(rasterizer.depthBias, rasterizer.slopeScaledDepthBias, rasterizer.depthBiasClamp);
+        encoder->setTriangleFillMode(translateTriangleFillMode(rasterizer.fillMode));
+        if (m_useDepthStencil)
+        {
+            encoder->setDepthStencilState(m_renderPipeline->m_depthStencilState.get());
+        }
+    }
     if (updateBlendColor)
         encoder->setBlendColor(state.blendColor[0], state.blendColor[1], state.blendColor[2], state.blendColor[3]);
-    if (m_useDepthStencil)
-    {
-        encoder->setDepthStencilState(m_renderPipeline->m_depthStencilState.get());
-    }
 
     if (updateStencilRef)
     {
@@ -748,6 +759,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
 void CommandRecorder::cmdDraw(const commands::Draw& cmd)
 {
+    cpu_profile::Scope drawTimer(9);
     if (!m_renderStateValid)
         return;
 
@@ -762,6 +774,7 @@ void CommandRecorder::cmdDraw(const commands::Draw& cmd)
 
 void CommandRecorder::cmdDrawIndexed(const commands::DrawIndexed& cmd)
 {
+    cpu_profile::Scope drawTimer(9);
     if (!m_renderStateValid)
         return;
 
@@ -779,18 +792,21 @@ void CommandRecorder::cmdDrawIndexed(const commands::DrawIndexed& cmd)
 
 void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
 {
+    cpu_profile::Scope drawTimer(9);
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(IRenderPassEncoder, drawIndirect);
 }
 
 void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect& cmd)
 {
+    cpu_profile::Scope drawTimer(9);
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(IRenderPassEncoder, drawIndexedIndirect);
 }
 
 void CommandRecorder::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
 {
+    cpu_profile::Scope drawTimer(9);
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(IRenderPassEncoder, drawMeshTasks);
 }

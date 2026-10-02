@@ -125,3 +125,11 @@ restores repeated queries and sampler retains for same-binary controls. Detailed
 CSV adds `binding_reuse_calls`, `sampler_retain_calls` and
 `sampler_retain_skip_calls` (the last counts cross-slot/encoder deduplication,
 not same-slot skips, which are included in binding reuse).
+
+Metal4 rasterizer and depth-stencil state is reapplied when the render pipeline
+changes or a new render encoder invalidates cached state. Viewport, scissor, blend
+color and stencil reference retain their existing independent change checks.
+`SLANG_RHI_RENDER_STATE_DELTAS=0` restores rasterizer/depth writes on every draw.
+CPU detail now reports `render_state_ms` (including binding setters),
+`raster_state_ms` (nested state writes) and `draw_native_ms` (including table binds).
+These scopes overlap native recording; do not sum them as exclusive costs.
