@@ -34,7 +34,7 @@ Supported paths include indexed/instanced rasterization, compute, buffer/texture
 copies and uploads, native imports/swizzled views, parameter blocks, dynamic blend
 constants/independent constant-alpha factors, precise occlusion queries, and
 rectangle/channel/depth/stencil clears (including MSAA preservation). Unsupported
-acceleration-structure/ray-query and timestamp-pool paths are not advertised;
+acceleration-structure/ray-query and timestamp-calibration paths are not advertised;
 creating an unsupported query pool or acceleration structure returns
 `SLANG_E_NOT_AVAILABLE`. Existing classic-backend limitations such as indirect draws
 and mesh commands are retained. A new backend does not imply full Metal API coverage.
@@ -53,3 +53,17 @@ initial retail b30 Debug run exited0, rendered coherent geometry/Slug text, and
 reported no API errors or native draw fallbacks. Older hardware/OS boot testing is
 not claimed. Performance conclusions require isolated game runs and GPU timing;
 classic Metal submission timings do not measure this queue.
+
+
+Timestamp queries use Metal4 counter heaps with fenced GPU readback and query
+readiness/reset semantics. TimestampFrequency derives from mach_timebase_info;
+raw counters are Mach ticks, not nanoseconds (24MHz on the measured M2 Pro).
+Reset invalidates retired heap entries and rejects an outstanding submitted
+writer. Precise samples can affect performance and include subsequent work;
+completion spans are not exclusive GPU costs. Classic Metal does not advertise
+timestamp queries and explicitly rejects pool creation.
+
+After timestamp support, both complete backend selections passed over41million
+assertions with no failures. Focused query/occlusion tests, repeated pool reuse,
+real shader draws, clock-scale validation and classic unsupported-query tests
+also passed. Performance diagnostics are opt-in and must use an untimed control.

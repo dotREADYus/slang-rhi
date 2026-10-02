@@ -51,7 +51,7 @@ public:
     api::Ptr<api::CommandBuffer> m_commandBuffer;
     api::Ptr<api::RenderCommandEncoder> m_renderCommandEncoder;
     api::Ptr<api::ComputeCommandEncoder> m_computeCommandEncoder;
-    
+
     api::Ptr<api::BlitCommandEncoder> m_blitCommandEncoder;
 
     short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
