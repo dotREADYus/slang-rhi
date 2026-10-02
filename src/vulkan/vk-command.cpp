@@ -770,6 +770,9 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         return;
 
     const RenderState& state = cmd.state;
+    bool updateBlendColor = !m_renderStateValid ||
+        std::memcmp(state.blendColor, m_renderState.blendColor, sizeof(state.blendColor)) != 0;
+
 
     bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
     bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
@@ -891,6 +894,9 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         }
         api.vkCmdSetScissor(m_cmdBuffer, 0, state.scissorRectCount, scissorRects);
     }
+
+    if (updateBlendColor)
+        m_api.vkCmdSetBlendConstants(m_cmdBuffer, state.blendColor);
 
     m_renderStateValid = true;
     m_renderState = state;

@@ -195,10 +195,6 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipeline->m_blendState = blendState;
     pipeline->m_rtvCount = desc.targetCount;
     pipeline->m_primitiveTopology = translatePrimitiveTopology(desc.primitiveTopology);
-    pipeline->m_blendColor[0] = 0;
-    pipeline->m_blendColor[1] = 0;
-    pipeline->m_blendColor[2] = 0;
-    pipeline->m_blendColor[3] = 0;
     pipeline->m_sampleMask = 0xFFFFFFFF;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;

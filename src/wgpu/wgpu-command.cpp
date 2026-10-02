@@ -484,6 +484,9 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         return;
 
     const RenderState& state = cmd.state;
+    bool updateBlendColor = !m_renderStateValid ||
+        std::memcmp(state.blendColor, m_renderState.blendColor, sizeof(state.blendColor)) != 0;
+
 
     bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
     bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
@@ -590,6 +593,12 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             scissorRect.maxX - scissorRect.minX,
             scissorRect.maxY - scissorRect.minY
         );
+    }
+
+    if (updateBlendColor)
+    {
+        WGPUColor color = {state.blendColor[0], state.blendColor[1], state.blendColor[2], state.blendColor[3]};
+        m_ctx.api.wgpuRenderPassEncoderSetBlendConstant(m_renderPassEncoder, &color);
     }
 
     m_renderStateValid = true;

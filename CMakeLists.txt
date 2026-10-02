@@ -1076,6 +1076,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-cmd-copy-texture-to-buffer.cpp
         tests/test-cmd-debug.cpp
         tests/test-cmd-draw.cpp
+        tests/test-cmd-blend-constants.cpp
         tests/test-cmd-occlusion.cpp
         tests/test-cmd-clear-view.cpp
         tests/test-cmd-query.cpp

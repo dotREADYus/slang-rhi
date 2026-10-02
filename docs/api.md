@@ -353,3 +353,13 @@ not promised to be a free native clear. Pipeline cache entries use internal
 references and are retired while the backend device is alive. CPU/CUDA/WebGPU
 return NOT_AVAILABLE and do not advertise the feature. Existing clear signatures
 and behavior are unchanged.
+
+### Dynamic blend constants
+
+`RenderState::blendColor` supplies RGBA constants for `BlendColor` and
+`InvBlendColor` factors. Values default to zero and are recorded with each draw;
+changes do not create new pipelines. Metal, D3D11, D3D12, Vulkan and WebGPU apply
+these values as dynamic render state and reset them at render-pass boundaries.
+The regression test changes constants with the same pipeline, verifies distinct
+per-draw results and checks default-zero state in a subsequent pass. CPU/CUDA
+backends do not support graphics rasterization.

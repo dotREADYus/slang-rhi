@@ -2527,6 +2527,9 @@ struct SamplePosition
 
 struct RenderState
 {
+    /// Dynamic RGBA constants used by BlendColor / InvBlendColor factors.
+    /// Recorded per draw; changing these does not require a new pipeline.
+    float blendColor[4] = {0.f, 0.f, 0.f, 0.f};
     uint32_t stencilRef = 0;
     Viewport viewports[16];
     uint32_t viewportCount = 0;

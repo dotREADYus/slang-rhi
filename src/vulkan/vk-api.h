@@ -153,6 +153,7 @@ protected:
     x(vkCmdDrawIndirectCount) \
     x(vkCmdDrawIndexedIndirectCount) \
     x(vkCmdSetScissor) \
+    x(vkCmdSetBlendConstants) \
     x(vkCmdSetViewport) \
     x(vkCmdBindVertexBuffers) \
     x(vkCmdBindIndexBuffer) \

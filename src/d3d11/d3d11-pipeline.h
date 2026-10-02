@@ -18,7 +18,6 @@ public:
 
     UINT m_rtvCount;
     D3D_PRIMITIVE_TOPOLOGY m_primitiveTopology;
-    float m_blendColor[4];
     UINT m_sampleMask;
 
     RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc);

@@ -507,6 +507,9 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         return;
 
     const RenderState& state = cmd.state;
+    bool updateBlendColor = !m_renderStateValid ||
+        std::memcmp(state.blendColor, m_renderState.blendColor, sizeof(state.blendColor)) != 0;
+
 
     bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
     bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
@@ -541,11 +544,7 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         m_immediateContext->VSSetShader(m_renderPipeline->m_vertexShader, nullptr, 0);
         m_immediateContext->RSSetState(m_renderPipeline->m_rasterizerState);
         m_immediateContext->PSSetShader(m_renderPipeline->m_pixelShader, nullptr, 0);
-        m_immediateContext->OMSetBlendState(
-            m_renderPipeline->m_blendState,
-            m_renderPipeline->m_blendColor,
-            m_renderPipeline->m_sampleMask
-        );
+
     }
 
     if (updateBindings)
@@ -677,6 +676,9 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         }
         m_immediateContext->RSSetScissorRects(state.scissorRectCount, scissorRects);
     }
+
+    if (updatePipeline || updateBlendColor)
+        m_immediateContext->OMSetBlendState(m_renderPipeline->m_blendState, state.blendColor, m_renderPipeline->m_sampleMask);
 
     m_renderStateValid = true;
     m_renderState = state;

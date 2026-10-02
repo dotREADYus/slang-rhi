@@ -850,6 +850,9 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         return;
 
     const RenderState& state = cmd.state;
+    bool updateBlendColor = !m_renderStateValid ||
+        std::memcmp(state.blendColor, m_renderState.blendColor, sizeof(state.blendColor)) != 0;
+
 
     bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
     bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
@@ -977,6 +980,9 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     }
 
     commitBarriers();
+
+    if (updateBlendColor)
+        m_cmdList->OMSetBlendFactor(state.blendColor);
 
     m_renderStateValid = true;
     m_renderState = state;
